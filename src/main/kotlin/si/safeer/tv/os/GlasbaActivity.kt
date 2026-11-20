@@ -7958,6 +7958,7 @@ class GlasbaActivity : OsActivity() {
                 // znova, spremeni se le napis pod naslovom (izmerjeno 5. 10. 2026: sest polnih risanj v devetih sekundah).
                 val podpis = vrste.joinToString("|") { v -> v.naslov + ":" + v.kartice.joinToString(",") { k -> k.id.ifBlank { k.naslov + "/" + k.podnaslov } } }
                 if (koncno) odpriNatancnega(beseda, lestvica)
+                if (koncno) predpripraviKakovostZadetkov(lestvica.mapNotNull { (it.first.stvar as? Jamendo.Skladba)?.takeIf { sk -> Stremio.jeEnota(sk) } })
                 if (podpis == podpisZadetkov && !prvic) { stanje.text = opisZdaj; return@post }
                 podpisZadetkov = podpis
                 // Brez spletnih virov: jasno sporocilo (iskali smo le po napravah), ne »nic nisem nasel« (naloga 57).
@@ -9077,6 +9078,35 @@ class GlasbaActivity : OsActivity() {
         val zdaj = android.os.SystemClock.uptimeMillis()
         nasloviIzrisa?.let { (cas, n) -> if (zdaj - cas in 0 until IZRIS_VELJA_MS) return n }
         return stremioNaslovi().also { nasloviIzrisa = zdaj to it }
+    }
+
+    private val kakovostZadetkovZahtevana = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    /**
+     * Lastnik 20. 11. 2026: pri iskanju po imenu filma ali serije naj zraven pise tudi kvaliteta posnetka. Kakovost je znana
+     * samo iz tokov, zato za prvih nekaj zadetkov dodatkov tokove poiscemo v ozadju, ena enota naenkrat (predpomnilnik tokov
+     * jih ob kliku ze ima); znacka na kartici se dopolni na mestu ([zabeleziKakovost]). Ze znane kakovosti ne sprasujemo znova.
+     */
+    private fun predpripraviKakovostZadetkov(enote: List<Jamendo.Skladba>) {
+        val naVrsti = enote.filter { !Stremio.jeVZivo(it) }.mapNotNull { sk ->
+            val (_, tip, id) = Stremio.razstavi(sk) ?: return@mapNotNull null
+            if (tip != "movie" && tip != "series") return@mapNotNull null
+            if (KakovostZnane.oznaka(this, id) != null || !kakovostZadetkovZahtevana.add(id)) return@mapNotNull null
+            Triple(tip, id, Stremio.jeSerija(sk))
+        }.take(8)
+        if (naVrsti.isEmpty()) return
+        try {
+            iskanjeDelavec.execute {
+                for ((tip, id, serija) in naVrsti) {
+                    if (isFinishing || isDestroyed) return@execute
+                    try {
+                        val t = if (serija) tokoviVzporedno(tip, id, dodatniId = "$id:1:1", odUporabnika = false)
+                            else tokoviVzporedno(tip, id, odUporabnika = false)
+                        zabeleziKakovost(id, t, serija)
+                    } catch (_: Exception) { }
+                }
+            }
+        } catch (_: Exception) { }
     }
 
     /** Kakovost iz tokov, ki jih ze imamo (nikoli klic indeksatorja samo za oznako); spremembo pokaze znacka na mestu. */
@@ -11555,6 +11585,8 @@ class GlasbaActivity : OsActivity() {
                           /** Kaj storiti, ce se vsebine ne da predvajati (epizoda: nazaj na seznam epizod); privzeto: kartica izgine. */
                           /** Prehod z »samo Usenet« na debrid (lastnik 1. 11. 2026): drugi klic brez omejitve na Usenet. */
                           brezOmejitveUseneta: Boolean = false,
+                          /** Lastnik 21. 11. 2026: izdaje Useneta, ki so ze odpovedale (naslov toka) - preklop sredi filma jih preskoci. */
+                          izkljuciUsenet: Set<String> = emptySet(),
                           obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
@@ -11848,7 +11880,7 @@ class GlasbaActivity : OsActivity() {
         val torrenti = DebridPravila.predpomnjeniNaprej(hashiTorrentov, predpomnjeni).map { torrentiPoKakovosti[it] }
         fun pripravljen(t: Stremio.Tok) = t.vrsta == "torrent" && TorBoxPravila.hashIzMagneta(t.url)?.lowercase() in predpomnjeni
         // Naloga 141: Usenet (TorBox) po kakovosti.
-        val usenet = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == UsenetPravila.VRSTA }, opis, zmoznostiNaprave,
+        val usenet = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == UsenetPravila.VRSTA && it.url !in izkljuciUsenet }, opis, zmoznostiNaprave,
             zelenJezik = zelen, izvirni = sk.language, roj = { false }), roj = false)
         // Webtor rezerva: tokovi Webtor po kakovosti, nato v vrstnem redu nasih torrentov ([WebtorPravila.vrstniRed]: ista
         // izdaja, kot bi jo izbrali sami, je prva).
@@ -11940,12 +11972,12 @@ class GlasbaActivity : OsActivity() {
             // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
             // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }, izbranSamoUsenet).map { usenet[it] }
-            pripravljeno.usenet?.takeIf { !samoWebtor && it.third == UsenetPomocPravila.PONUDNIK }?.let { (t, _, _) ->
+            pripravljeno.usenet?.takeIf { !samoWebtor && it.third == UsenetPomocPravila.PONUDNIK && it.first.url !in izkljuciUsenet }?.let { (t, _, _) ->
                 usenetPrekPomocnika(sk, naslov, skladbaToka(t), t, vsiTokovi.filter { it.vrsta != UsenetPravila.VRSTA }, rocno,
                     pripravljeno, obNeuspehu)
                 return
             }
-            pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn, ponudnik) ->
+            pripravljeno.usenet?.takeIf { !samoWebtor && it.first.url !in izkljuciUsenet }?.let { (t, cdn, ponudnik) ->
                 android.util.Log.i("SafeerOsMediji", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")
                 Toast.makeText(this, napisPredvajaPrek(ponudnik), Toast.LENGTH_SHORT).show()
                 odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
@@ -11954,12 +11986,14 @@ class GlasbaActivity : OsActivity() {
                 if (brezUseneta.isNotEmpty()) GlasbaStoritev.obOdpovedi = {
                     if (!isFinishing && !isDestroyed) izberiTok(sk, naslov, brezUseneta, rocno, Pripravljeno(pripravljeno.predpomnjeni), obNeuspehu = obNeuspehu)
                 }
-                // Lastnik 20. 11. 2026: ce Usenet odpove sredi filma, gre izbira na drug vir in nadaljuje na istem mestu.
-                if (brezUseneta.isNotEmpty()) GlasbaStoritev.obOdpovediSredi = { mesto ->
+                // Lastnik 20./21. 11. 2026: ce Usenet odpove sredi filma, gre izbira na naslednjo izdajo Useneta (nato drug vir)
+                // in nadaljuje na istem mestu; odpovedana izdaja se preskoci.
+                GlasbaStoritev.obOdpovediSredi = { mesto ->
                     if (!isFinishing && !isDestroyed) {
                         preklopMesto = mesto
                         glavna.postDelayed({ preklopMesto = -1L }, 60_000)
-                        izberiTok(sk, naslov, brezUseneta, rocno, Pripravljeno(pripravljeno.predpomnjeni), obNeuspehu = obNeuspehu)
+                        izberiTok(sk, naslov, vsiTokovi, rocno, Pripravljeno(pripravljeno.predpomnjeni), izkljuciUsenet = izkljuciUsenet + t.url,
+                            obNeuspehu = obNeuspehu)
                     }
                 }
                 return
@@ -12012,7 +12046,7 @@ class GlasbaActivity : OsActivity() {
                     android.util.Log.i("SafeerOsMediji", "tokovi: Usenet ni uspel - rezerva $debridRezerva")
                     DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "usenet", null, "ni uspel, naprej na debrid $debridRezerva")
                     Toast.makeText(this, R.string.os_usenet_prehod_debrid, Toast.LENGTH_SHORT).show()
-                    izberiTok(sk, naslov, vsiTokovi, rocno, pripravljeno, brezOmejitveUseneta = true, obNeuspehu = obNeuspehu)
+                    izberiTok(sk, naslov, vsiTokovi, rocno, pripravljeno, brezOmejitveUseneta = true, izkljuciUsenet = izkljuciUsenet, obNeuspehu = obNeuspehu)
                     return
                 }
 
@@ -12055,7 +12089,17 @@ class GlasbaActivity : OsActivity() {
                 usenetPoskusov++
                 val t = poskusi[iNaslednji]
                 android.util.Log.i("SafeerOsMediji", "tokovi: Usenet s prenosom ${iNaslednji + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
-                prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
+                prekDebrida(t.url, t.datoteka, { cdn ->
+                    odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
+                    GlasbaStoritev.obOdpovediSredi = { mesto ->
+                        if (!isFinishing && !isDestroyed) {
+                            preklopMesto = mesto
+                            glavna.postDelayed({ preklopMesto = -1L }, 60_000)
+                            izberiTok(sk, naslov, vsiTokovi, rocno, Pripravljeno(pripravljeno.predpomnjeni), izkljuciUsenet = izkljuciUsenet + t.url,
+                                obNeuspehu = obNeuspehu)
+                        }
+                    }
+                }, null,
                     samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { napaka ->
                         DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "usenet", t.url, napaka.ifBlank { "ni uspel" })
                         poskusiUsenetSCakanjem(iNaslednji + 1, napaka)

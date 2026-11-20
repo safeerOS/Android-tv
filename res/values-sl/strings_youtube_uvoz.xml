@@ -25,4 +25,11 @@
     <string name="yt_uvoz_kartica_racun">YouTube (račun)</string>
     <string name="yt_uvoz_kartica_povezano">Povezano · sinhronizacija seznamov</string>
     <string name="yt_uvoz_kartica_opis">Prijava in samodejni uvoz seznamov</string>
+    <string name="yt_racun_ime">Račun %d</string>
+    <string name="yt_racun_dodaj">Dodaj še en račun</string>
+    <string name="yt_racun_stevilo">Povezanih računov: %1$d</string>
+    <string name="yt_racun_odjava_izbira">Odjava: izberi račun</string>
+    <string name="yt_racun_vsi">Vsi računi</string>
+    <string name="yt_racun_potekel">Brez uvoza iz: %1$s. Prijavi ta račun znova (Dodaj še en račun).</string>
+    <string name="yt_racun_dodan">Račun dodan</string>
 </resources>

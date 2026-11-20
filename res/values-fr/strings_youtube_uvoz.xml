@@ -25,4 +25,11 @@
     <string name="yt_uvoz_kartica_racun">YouTube (compte)</string>
     <string name="yt_uvoz_kartica_povezano">Connecté · synchronisation des playlists</string>
     <string name="yt_uvoz_kartica_opis">Connexion et import automatique des playlists</string>
+    <string name="yt_racun_ime">Compte %d</string>
+    <string name="yt_racun_dodaj">Ajouter un autre compte</string>
+    <string name="yt_racun_stevilo">Comptes connectés : %1$d</string>
+    <string name="yt_racun_odjava_izbira">Déconnexion : choisir un compte</string>
+    <string name="yt_racun_vsi">Tous les comptes</string>
+    <string name="yt_racun_potekel">Rien importé depuis : %1$s. Reconnectez ce compte (Ajouter un autre compte).</string>
+    <string name="yt_racun_dodan">Compte ajouté</string>
 </resources>

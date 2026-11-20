@@ -84,6 +84,7 @@ object YouTubeUvoz {
     fun odjavi(ctx: Context) {
         ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().clear()
             .putBoolean(KLJUC_ODJAVLJEN, true).apply()
+        YouTubeRacuni.odstraniVse(ctx)
         try {
             val cm = CookieManager.getInstance()
             // piskotki so nastavljeni na domeno .youtube.com/.google.com s Path=/, zato jih brisemo z enakimi atributi
@@ -98,6 +99,54 @@ object YouTubeUvoz {
         } catch (_: Throwable) {}
     }
 
+    /** Racun, ki je trenutno prijavljen v WebView (zabelezen ali osvezen v shrambi); null = nobenega ali ni mogoce shraniti. */
+    fun zabeleziTrenutni(ctx: Context): YouTubeRacuni.Racun? {
+        val c = try { CookieManager.getInstance().getCookie("https://www.youtube.com").orEmpty() } catch (_: Throwable) { "" }
+        if (c.isBlank()) return null
+        return YouTubeRacuni.zabelezi(ctx, c, ctx.getString(R.string.yt_racun_ime))
+    }
+
+    /**
+     * Priprava na prijavo ENEGA VEC racuna: trenutni racun se shrani, nato se piskotki prijave v WebView izbrisejo
+     * (shranjeni posnetki ostanejo), da prijavna stran ponudi prazno prijavo. false = trenutnega racuna ni mogoce shraniti
+     * (brez Keystore) - brisati ga ne smemo, sicer bi ga izgubili.
+     */
+    fun pripraviNovRacun(ctx: Context): Boolean {
+        val cm = CookieManager.getInstance()
+        val trenutni = cm.getCookie("https://www.youtube.com").orEmpty()
+        if (trenutni.isNotBlank() && YouTubeRacuniPravila.idRacuna(trenutni) != null && zabeleziTrenutni(ctx) == null) return false
+        pocistiPrijavoWebView()
+        return true
+    }
+
+    /** Izbrise piskotke prijave youtube.com in google.com iz skupne zbirke WebView (shranjeni posnetki racunov ostanejo). */
+    private fun pocistiPrijavoWebView() {
+        val cm = CookieManager.getInstance()
+        try {
+            for (domena in listOf("youtube.com", "google.com")) {
+                val imena = (YouTubeRacuniPravila.imenaPiskotkov(cm.getCookie("https://www.$domena").orEmpty()) +
+                    YouTubeRacuniPravila.imenaPiskotkov(cm.getCookie("https://accounts.$domena").orEmpty())).distinct()
+                for (ime in imena) {
+                    val varen = if (ime.startsWith("__Secure-") || ime.startsWith("__Host-")) "; Secure" else ""
+                    cm.setCookie("https://www.$domena", "$ime=; Domain=.$domena; Path=/; Max-Age=0$varen")
+                    cm.setCookie("https://www.$domena", "$ime=; Path=/; Max-Age=0$varen")
+                    cm.setCookie("https://accounts.$domena", "$ime=; Domain=.$domena; Path=/; Max-Age=0$varen")
+                    cm.setCookie("https://accounts.$domena", "$ime=; Path=/; Max-Age=0$varen")
+                }
+            }
+            cm.flush()
+        } catch (_: Throwable) { }
+    }
+
+    /** Odstrani en racun (shranjeni posnetek); uvozeni seznami ostanejo med viri. */
+    fun odstraniRacun(ctx: Context, id: String) {
+        // Ce je to racun, prijavljen v WebView, ga izbrisemo tudi tam - sicer bi ga naslednji uvoz znova shranil.
+        val zivi = try { CookieManager.getInstance().getCookie("https://www.youtube.com").orEmpty() } catch (_: Throwable) { "" }
+        if (YouTubeRacuniPravila.idRacuna(zivi) == id) pocistiPrijavoWebView()
+        YouTubeRacuni.odstrani(ctx, id)
+        if (YouTubeRacuni.seznam(ctx).isEmpty()) odjavi(ctx)
+    }
+
     /**
      * V ozadju poisce vse uporabnikove YouTube playliste in jih shrani v MedijskiViri.
      */
@@ -110,8 +159,20 @@ object YouTubeUvoz {
         glavna.post { onZacetek() }
         delavec.execute {
             try {
-                val cookies = CookieManager.getInstance().getCookie("https://www.youtube.com").orEmpty()
-                if (cookies.isBlank() || !jePrijavljen(ctx)) {
+                // Lastnik 21. 11. 2026: vec racunov. Trenutni WebView racun se osvezi v shrambi, nato se uvozijo vsi shranjeni racuni.
+                val zivi = if (jePrijavljen(ctx)) CookieManager.getInstance().getCookie("https://www.youtube.com").orEmpty() else ""
+                val ziviId = YouTubeRacuniPravila.idRacuna(zivi)
+                if (ziviId != null) YouTubeRacuni.zabelezi(ctx, zivi, ctx.getString(R.string.yt_racun_ime))
+                val racuni = YouTubeRacuni.seznam(ctx)
+                // Brez posnetkov (ni Keystore): vsaj trenutni racun, kot doslej.
+                val vir = if (racuni.isEmpty() && ziviId != null) listOf(Triple(YouTubeRacuni.Racun(ziviId, ""), zivi, "")) else {
+                    val prvo = YouTubeRacuniPravila.privzetoIme(1, ctx.getString(R.string.yt_racun_ime))
+                    racuni.map { r ->
+                        Triple(r, if (r.id == ziviId) zivi else YouTubeRacuni.piskotki(ctx, r.id).orEmpty(),
+                            YouTubeRacuniPravila.predponaSeznama(r.ime, prvo))
+                    }
+                }
+                if (vir.isEmpty() || vir.all { it.second.isBlank() }) {
                     val s = ctx.getString(R.string.yt_uvoz_ni_prijave)
                     glavna.post { onKoncano(false, s) }
                     return@execute
@@ -119,25 +180,14 @@ object YouTubeUvoz {
                 val sNapredek = ctx.getString(R.string.yt_uvoz_pridobivam)
                 glavna.post { onNapredek(sNapredek) }
 
-                val imeVseckov = ctx.getString(R.string.yt_uvoz_vsecki)
-                // vsecki (LL) so vedno zadnji; uspeh se meri po dejansko uvozenih seznamih, ne po stevilu najdenih
-                val seznami = poisciUporabnikovePlayliste(cookies) + PlaylistZapis("LL", imeVseckov)
-
                 var uvozenih = 0
                 var skupajSkladb = 0
-                // Lastnik 20. 11. 2026: tudi kanali, na katere je uporabnik narocen (najnovejsi videi kanalov).
-                val sNarocnine = ctx.getString(R.string.yt_uvoz_narocnine)
-                glavna.post { onNapredek(sNarocnine) }
-                val nar = try { uvoziNarocnine(ctx, sNarocnine, cookies) } catch (e: Throwable) { Log.w(TAG, "Narocnine: ${e.javaClass.simpleName}"); 0 }
-                if (nar > 0) { uvozenih++; skupajSkladb += nar }
-                for (s in seznami) {
-                    val sUvazam = ctx.getString(R.string.yt_uvoz_uvazam, s.naslov)
-                    glavna.post { onNapredek(sUvazam) }
-                    val st = uvoziPosamezno(ctx, s.id, s.naslov, cookies)
-                    if (st > 0) {
-                        uvozenih++
-                        skupajSkladb += st
-                    }
+                val potekli = ArrayList<String>()
+                for ((racun, cookies, predpona) in vir) {
+                    if (cookies.isBlank()) { potekli.add(racun.ime); continue }
+                    val (n, st) = uvoziRacun(ctx, cookies, predpona, onNapredek)
+                    if (n == 0) potekli.add(racun.ime.ifBlank { "YouTube" })
+                    uvozenih += n; skupajSkladb += st
                 }
 
                 if (uvozenih == 0) {
@@ -151,7 +201,8 @@ object YouTubeUvoz {
                     .putLong(KLJUC_ZADNJI_UVOZ, System.currentTimeMillis())
                     .apply()
 
-                val sUspeh = ctx.getString(R.string.yt_uvoz_uspeh, uvozenih, skupajSkladb)
+                var sUspeh = ctx.getString(R.string.yt_uvoz_uspeh, uvozenih, skupajSkladb)
+                if (potekli.isNotEmpty()) sUspeh += "\n" + ctx.getString(R.string.yt_racun_potekel, potekli.joinToString(", "))
                 glavna.post { onKoncano(true, sUspeh) }
             } catch (e: Throwable) {
                 Log.w(TAG, "Napaka pri uvozu YouTube seznamov: ${e.message}")
@@ -160,6 +211,27 @@ object YouTubeUvoz {
                 glavna.post { onKoncano(false, s) }
             }
         }
+    }
+
+    /** Seznami, vsecki in narocnine ENEGA racuna; vrne (stevilo uvozenih seznamov, skupaj skladb). Imena seznamov dobijo [predpono]. */
+    private fun uvoziRacun(ctx: Context, cookies: String, predpona: String, onNapredek: (String) -> Unit): Pair<Int, Int> {
+        val imeVseckov = ctx.getString(R.string.yt_uvoz_vsecki)
+        // vsecki (LL) so vedno zadnji; uspeh se meri po dejansko uvozenih seznamih, ne po stevilu najdenih
+        val seznami = poisciUporabnikovePlayliste(cookies) + PlaylistZapis("LL", imeVseckov)
+        var uvozenih = 0
+        var skupajSkladb = 0
+        // Lastnik 20. 11. 2026: tudi kanali, na katere je uporabnik narocen (najnovejsi videi kanalov).
+        val sNarocnine = ctx.getString(R.string.yt_uvoz_narocnine)
+        glavna.post { onNapredek(predpona + sNarocnine) }
+        val nar = try { uvoziNarocnine(ctx, predpona + sNarocnine, cookies) } catch (e: Throwable) { Log.w(TAG, "Narocnine: ${e.javaClass.simpleName}"); 0 }
+        if (nar > 0) { uvozenih++; skupajSkladb += nar }
+        for (s in seznami) {
+            val sUvazam = ctx.getString(R.string.yt_uvoz_uvazam, predpona + s.naslov)
+            glavna.post { onNapredek(sUvazam) }
+            val st = uvoziPosamezno(ctx, s.id, predpona + s.naslov, cookies)
+            if (st > 0) { uvozenih++; skupajSkladb += st }
+        }
+        return uvozenih to skupajSkladb
     }
 
     /** Narocnine: kanale prebere s prijavo (FEchannels), videe vsakega iz javnega RSS; vrne stevilo videov v seznamu. */

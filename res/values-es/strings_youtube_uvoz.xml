@@ -25,4 +25,11 @@
     <string name="yt_uvoz_kartica_racun">YouTube (cuenta)</string>
     <string name="yt_uvoz_kartica_povezano">Conectada · sincronización de listas</string>
     <string name="yt_uvoz_kartica_opis">Inicia sesión e importa listas automáticamente</string>
+    <string name="yt_racun_ime">Cuenta %d</string>
+    <string name="yt_racun_dodaj">Añadir otra cuenta</string>
+    <string name="yt_racun_stevilo">Cuentas conectadas: %1$d</string>
+    <string name="yt_racun_odjava_izbira">Cerrar sesión: elige una cuenta</string>
+    <string name="yt_racun_vsi">Todas las cuentas</string>
+    <string name="yt_racun_potekel">No se importó nada de: %1$s. Vuelve a iniciar sesión en esa cuenta (Añadir otra cuenta).</string>
+    <string name="yt_racun_dodan">Cuenta añadida</string>
 </resources>

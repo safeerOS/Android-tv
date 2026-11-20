@@ -25,4 +25,11 @@
     <string name="yt_uvoz_kartica_racun">YouTube (Konto)</string>
     <string name="yt_uvoz_kartica_povezano">Verbunden · Playlist-Synchronisierung</string>
     <string name="yt_uvoz_kartica_opis">Anmelden und Playlists automatisch importieren</string>
+    <string name="yt_racun_ime">Konto %d</string>
+    <string name="yt_racun_dodaj">Weiteres Konto hinzufügen</string>
+    <string name="yt_racun_stevilo">Verbundene Konten: %1$d</string>
+    <string name="yt_racun_odjava_izbira">Abmelden: Konto wählen</string>
+    <string name="yt_racun_vsi">Alle Konten</string>
+    <string name="yt_racun_potekel">Nichts importiert von: %1$s. Melden Sie dieses Konto erneut an (Weiteres Konto hinzufügen).</string>
+    <string name="yt_racun_dodan">Konto hinzugefügt</string>
 </resources>

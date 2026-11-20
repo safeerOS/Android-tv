@@ -25,4 +25,11 @@
     <string name="yt_uvoz_kartica_racun">YouTube (account)</string>
     <string name="yt_uvoz_kartica_povezano">Connected · playlist sync</string>
     <string name="yt_uvoz_kartica_opis">Sign in and import playlists automatically</string>
+    <string name="yt_racun_ime">Account %d</string>
+    <string name="yt_racun_dodaj">Add another account</string>
+    <string name="yt_racun_stevilo">Accounts connected: %1$d</string>
+    <string name="yt_racun_odjava_izbira">Sign out: choose an account</string>
+    <string name="yt_racun_vsi">All accounts</string>
+    <string name="yt_racun_potekel">Nothing imported from: %1$s. Sign in to that account again (Add another account).</string>
+    <string name="yt_racun_dodan">Account added</string>
 </resources>

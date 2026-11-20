@@ -353,6 +353,20 @@ class GlasbaStoritev : Service() {
                         p.pause()
                         return
                     }
+                    // Lastnik 21. 11. 2026: tezava s povezavo sredi predvajanja - cez 1 s se predvajalnik znova poveze z ISTIM tokom
+                    // na istem mestu, da uporabnik tezave ne opazi. Ce tudi to odpove, sledi drug vir (rezerva, druga izdaja) na istem
+                    // mestu. Ponovitev najvec enkrat na 15 s (ce se tok vrne in takoj spet pade, gre naprej na drug vir).
+                    val zdajPon = android.os.SystemClock.uptimeMillis()
+                    val mestoPon = maxOf(p.currentPosition, zacetekPoskusa)
+                    if (zacelo && error.errorCode in 2000..2999 && mestoPon > 5_000 && zdajPon - zadnjaPonovitev > 15_000 && enota != null) {
+                        zadnjaPonovitev = zdajPon
+                        val idPon = enota.id
+                        Log.i("SafeerOsMedia", "povezava odpovedala (koda=${error.errorCode}): ponovni poskus istega toka cez 1 s, mesto=$mestoPon")
+                        android.os.Handler(mainLooper).postDelayed({
+                            if (exo === p && trenutna()?.id == idPon) { p.seekTo(mestoPon); p.prepare(); p.play() }
+                        }, 1_000)
+                        return
+                    }
                     // Film iz dodatka ima rezervne tokove (naslednji najboljsi): poskusimo jih po vrsti, brez vprasanj.
                     val naslednji = rezerve.firstOrNull()
                     if (naslednji != null) {
@@ -1108,6 +1122,9 @@ class GlasbaStoritev : Service() {
     /** Kdaj se je zacel zadnji poskus predvajanja (uptimeMillis) in pri katerem mestu - za preklop na rezervni tok. */
     private var poskusOd = 0L
     private var zacetekPoskusa = 0L
+
+    /** Kdaj je bil zadnjic poskus ponovne povezave z istim tokom po tezavi sredi predvajanja (uptimeMillis). */
+    private var zadnjaPonovitev = 0L
 
     /**
      * Mrtva povezava (odgovor 4xx: potekla, izbrisana, zavrnjena) se s ponavljanjem ne popravi. Kadar ima vsebina

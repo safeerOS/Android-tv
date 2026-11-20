@@ -52,6 +52,17 @@ object YouTubeUvozOkno {
         }
         vsebina.addView(opis)
 
+        // Lastnik 21. 11. 2026: vec racunov - seznam povezanih racunov.
+        val racuni = YouTubeRacuni.seznam(a)
+        if (jePrijavljen && racuni.isNotEmpty()) {
+            vsebina.addView(TextView(a).apply {
+                text = a.getString(R.string.yt_racun_stevilo, racuni.size) + "\n" + racuni.joinToString(" · ") { it.ime }
+                textSize = 13f
+                setTextColor(android.graphics.Color.parseColor("#2DD4BF"))
+                setPadding(0, 0, 0, (14 * d).toInt())
+            })
+        }
+
         val napredekVrsta = LinearLayout(a).apply {
             orientation = LinearLayout.HORIZONTAL
             visibility = View.GONE
@@ -75,6 +86,7 @@ object YouTubeUvozOkno {
             .setView(ScrollView(a).apply { addView(vsebina) })
             .setPositiveButton(if (jePrijavljen) R.string.yt_uvoz_sinhroniziraj else R.string.yt_uvoz_prijava, null)
             .setNegativeButton(if (jePrijavljen) R.string.yt_uvoz_odjava else R.string.yt_uvoz_zapri, null)
+            .apply { if (jePrijavljen) setNeutralButton(R.string.yt_racun_dodaj, null) }
             .create()
 
         okno.setOnShowListener {
@@ -107,12 +119,35 @@ object YouTubeUvozOkno {
                 }
             }
 
+            okno.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
+                // trenutni racun se shrani, prijava v WebView se pocisti, nato prijava novega racuna
+                if (!YouTubeUvoz.pripraviNovRacun(a)) {
+                    Toast.makeText(a, R.string.yt_uvoz_napaka, Toast.LENGTH_LONG).show()
+                } else {
+                    okno.dismiss()
+                    odpriPrijavnoOkno(a) { pokazi(a, potem) }
+                }
+            }
+
             gumbDrugi.setOnClickListener {
                 if (YouTubeUvoz.jePrijavljen(a)) {
-                    YouTubeUvoz.odjavi(a)
-                    Toast.makeText(a, R.string.yt_uvoz_odjavljeni, Toast.LENGTH_SHORT).show()
-                    okno.dismiss()
-                    potem()
+                    val vsi = YouTubeRacuni.seznam(a)
+                    if (vsi.size > 1) {
+                        // vec racunov: odjava enega ali vseh
+                        val imena = vsi.map { it.ime } + a.getString(R.string.yt_racun_vsi)
+                        AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.yt_racun_odjava_izbira)
+                            .setItems(imena.toTypedArray()) { _, k ->
+                                if (k < vsi.size) YouTubeUvoz.odstraniRacun(a, vsi[k].id) else YouTubeUvoz.odjavi(a)
+                                Toast.makeText(a, R.string.yt_uvoz_odjavljeni, Toast.LENGTH_SHORT).show()
+                                okno.dismiss()
+                                potem()
+                            }.setNegativeButton(R.string.yt_uvoz_preklici, null).show()
+                    } else {
+                        YouTubeUvoz.odjavi(a)
+                        Toast.makeText(a, R.string.yt_uvoz_odjavljeni, Toast.LENGTH_SHORT).show()
+                        okno.dismiss()
+                        potem()
+                    }
                 } else {
                     okno.dismiss()
                 }
