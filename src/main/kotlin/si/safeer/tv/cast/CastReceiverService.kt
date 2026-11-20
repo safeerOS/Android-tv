@@ -1050,14 +1050,23 @@ class CastReceiverService : Service() {
                     // zaslon (kot screen.start), gledalec pa ga ne sme nikoli. Potrditev Androida na tej napravi ostane.
                     val celZaslon = dejanje.trim().lowercase() == "apps.launch" &&
                         si.safeer.tv.link.Daljinec.CEL_ZASLON in setOf(parametri.optString("app", ""), parametri.optString("package", ""))
+                    // »Zahtevaj poln dostop« (circle.*): prosta za Dostop (odloca uporabnik na tej napravi, pravila v os/KrogProsnja),
+                    // a samo po preverjeni seji (spodaj) in samo v zmoznostih Safeer OS.
+                    val krogDejanje = !gledalec && si.safeer.tv.link.KrogProsnjaPravila.jeDejanje(dejanje) &&
+                        BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")
                     val dovoljeno = (if (gledalec) Dostop.smeGledalec(this, dejanje, znakGledalca)
-                    else Dostop.smeDejanje(this, posiljatelj, dejanje, zascitaJedro)) &&
+                    else krogDejanje || Dostop.smeDejanje(this, posiljatelj, dejanje, zascitaJedro)) &&
                         (!celZaslon || (!gledalec && Dostop.smeDejanje(this, posiljatelj, "screen.start", zascitaJedro)))
                     if (!dovoljeno) {
                         if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje))
                         return
                     }
                     // Usklajevanje kljucev samo po preverjeni seji (pregled V1/U1): na nezasciteni poti posiljatelja vpise sredisce.
+                    if (krogDejanje && zascitaJedro.isEmpty()) {
+                        posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.Izid(false,
+                            "Prošnja samo po zaščiteni poti. Posodobi Safeer na napravi, ki jo pošilja.", koda = "zascita"))
+                        return
+                    }
                     if (!gledalec && DostopPravila.samoZasciteno(dejanje) && zascitaJedro.isEmpty()) {
                         posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.Izid(false,
                             "Uskladitev ključev samo po zaščiteni poti. Posodobi Safeer na napravi, ki jo pošilja.", koda = "zascita"))
