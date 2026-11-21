@@ -32,4 +32,7 @@
     <string name="yt_racun_vsi">Vsi računi</string>
     <string name="yt_racun_potekel">Brez uvoza iz: %1$s. Prijavi ta račun znova (Dodaj še en račun).</string>
     <string name="yt_racun_dodan">Račun dodan</string>
+    <string name="yt_uvoz_narocnine_glasba">Naročnine (YouTube) · glasba</string>
+    <string name="yt_uvoz_narocnine_ostalo">Naročnine (YouTube) · ostalo</string>
+    <string name="yt_uvoz_narocnine_kratki">Naročnine (YouTube) · kratki posnetki</string>
 </resources>

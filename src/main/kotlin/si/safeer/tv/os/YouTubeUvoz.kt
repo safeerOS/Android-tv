@@ -223,7 +223,7 @@ object YouTubeUvoz {
         // Lastnik 20. 11. 2026: tudi kanali, na katere je uporabnik narocen (najnovejsi videi kanalov).
         val sNarocnine = ctx.getString(R.string.yt_uvoz_narocnine)
         glavna.post { onNapredek(predpona + sNarocnine) }
-        val nar = try { uvoziNarocnine(ctx, predpona + sNarocnine, cookies) } catch (e: Throwable) { Log.w(TAG, "Narocnine: ${e.javaClass.simpleName}"); 0 }
+        val nar = try { uvoziNarocnine(ctx, predpona, cookies) } catch (e: Throwable) { Log.w(TAG, "Narocnine: ${e.javaClass.simpleName}"); 0 }
         if (nar > 0) { uvozenih++; skupajSkladb += nar }
         for (s in seznami) {
             val sUvazam = ctx.getString(R.string.yt_uvoz_uvazam, predpona + s.naslov)
@@ -235,7 +235,7 @@ object YouTubeUvoz {
     }
 
     /** Narocnine: kanale prebere s prijavo (FEchannels), videe vsakega iz javnega RSS; vrne stevilo videov v seznamu. */
-    private fun uvoziNarocnine(ctx: Context, naslov: String, cookies: String): Int {
+    private fun uvoziNarocnine(ctx: Context, predpona: String, cookies: String): Int {
         val json = zahtevaInnerTube("FEchannels", cookies) ?: return 0
         val kanali = LinkedHashSet<String>()
         fun hodi(o: Any?, g: Int) {
@@ -255,20 +255,115 @@ object YouTubeUvoz {
         }
         hodi(json, 0)
         Log.i(TAG, "narocnine: kanalov ${kanali.size}")
-        val skladbe = ArrayList<Jamendo.Skladba>()
+        // Lastnik 21. 11. 2026: glasba, ostalo in kratki posnetki so loceni seznami; glasba je zapisana kanal za kanalom
+        // in igra kot vrsta zvoka (konec skladbe -> naslednja skladba istega kanala), drugo ostane video.
+        val glasba = ArrayList<Jamendo.Skladba>()
+        val ostalo = ArrayList<Jamendo.Skladba>()
+        val kratki = ArrayList<Jamendo.Skladba>()
         for (id in kanali) {
-            val url = YouTubeNarocnine.naslovFeeda(id) ?: continue
-            val xml = try {
-                val c = (URL(url).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 6_000; readTimeout = 8_000; setRequestProperty("User-Agent", UA)
+            var ime = ""
+            val z = videiKanala(zahtevaInnerTube(id, cookies, TAB_VIDEI, RAZLICICA_KANALA)?.also { ime = imeKanala(it) }, false, VIDEOV_V_KANALU)
+            val k = videiKanala(zahtevaInnerTube(id, cookies, TAB_SHORTS, RAZLICICA_KANALA), true, KRATKIH_V_KANALU)
+            val vsi = if (z.isNotEmpty()) z + k else rssVidei(id)
+            for (v in vsi) {
+                val vrsta = YoutubeKanalVrsta.vrsta(v.naslov, v.kanal.ifBlank { ime }, v.trajanjeS, v.shorts)
+                val sk = UvozSeznama.youtubeSkladba(v.id, v.naslov, v.kanal.ifBlank { ime }, video = vrsta != YoutubeKanalVrsta.Vrsta.GLASBA)
+                when (vrsta) {
+                    YoutubeKanalVrsta.Vrsta.GLASBA -> glasba.add(sk)
+                    YoutubeKanalVrsta.Vrsta.OSTALO -> ostalo.add(sk)
+                    YoutubeKanalVrsta.Vrsta.KRATKI -> kratki.add(sk)
                 }
-                if (c.responseCode in 200..299) BufferedReader(InputStreamReader(c.inputStream, "UTF-8")).use { it.readText().take(400_000) } else ""
-            } catch (_: Throwable) { "" }
-            for (v in YouTubeNarocnine.videiIzFeeda(xml)) skladbe.add(UvozSeznama.youtubeSkladba(v.id, v.naslov, v.kanal, video = true))
+            }
         }
-        if (skladbe.isEmpty()) return 0
-        MedijskiViri.shraniSeznam(ctx, naslov.take(60), skladbe, "YouTube")
-        return skladbe.size
+        var skupaj = 0
+        for ((imeSeznama, skladbe) in listOf(
+            R.string.yt_uvoz_narocnine_glasba to glasba, R.string.yt_uvoz_narocnine_ostalo to ostalo, R.string.yt_uvoz_narocnine_kratki to kratki)) {
+            if (skladbe.isEmpty()) continue
+            MedijskiViri.shraniSeznam(ctx, (predpona + ctx.getString(imeSeznama)).take(60), skladbe, "YouTube")
+            skupaj += skladbe.size
+        }
+        return skupaj
+    }
+
+    private const val TAB_VIDEI = "EgZ2aWRlb3PyBgQKAjoA"
+    private const val TAB_SHORTS = "EgZzaG9ydHPyBgUKA5oBAA%3D%3D"
+    /** Zavihka kanala vrneta trajanja samo v novejsi obliki odgovora (lockupViewModel). */
+    private const val RAZLICICA_KANALA = "2.20251120.01.00"
+    private const val VIDEOV_V_KANALU = 12
+    private const val KRATKIH_V_KANALU = 4
+
+    private class KanalVideo(val id: String, val naslov: String, val kanal: String, val trajanjeS: Int?, val shorts: Boolean)
+
+    private fun imeKanala(json: JSONObject): String =
+        json.optJSONObject("metadata")?.optJSONObject("channelMetadataRenderer")?.optString("title").orEmpty().take(100)
+
+    /** Rezerva, ce zavihek ne odgovori: zadnji videi iz javnega RSS (brez trajanja - samo izrazite glasbene znacilnosti). */
+    private fun rssVidei(idKanala: String): List<KanalVideo> {
+        val url = YouTubeNarocnine.naslovFeeda(idKanala) ?: return emptyList()
+        val xml = try {
+            val c = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 6_000; readTimeout = 8_000; setRequestProperty("User-Agent", UA)
+            }
+            if (c.responseCode in 200..299) BufferedReader(InputStreamReader(c.inputStream, "UTF-8")).use { it.readText().take(400_000) } else ""
+        } catch (_: Throwable) { "" }
+        return YouTubeNarocnine.videiIzFeeda(xml).map { KanalVideo(it.id, it.naslov, it.kanal, null, false) }
+    }
+
+    private val RX_TRAJANJE = Regex("""^\d{1,3}:\d{2}(:\d{2})?$""")
+
+    /**
+     * Videi iz odgovora zavihka kanala (Videos ali Shorts): novi zapis (lockupViewModel, shortsLockupViewModel) in star
+     * (videoRenderer). Oblika preverjena 21. 11. 2026 na pravem odgovoru; kar ni prepoznano, se preskoci.
+     */
+    private fun videiKanala(json: JSONObject?, shorts: Boolean, najvec: Int): List<KanalVideo> {
+        if (json == null) return emptyList()
+        val izhod = ArrayList<KanalVideo>()
+        val videni = HashSet<String>()
+        fun trajanje(o: Any?, g: Int): Int? {
+            if (g > 30 || o == null) return null
+            when (o) {
+                is JSONArray -> for (i in 0 until o.length()) trajanje(o.opt(i), g + 1)?.let { return it }
+                is JSONObject -> {
+                    val t = o.optString("text")
+                    if (RX_TRAJANJE.matches(t)) return YoutubeKanalVrsta.trajanje(t)
+                    val k = o.keys()
+                    while (k.hasNext()) trajanje(o.opt(k.next()), g + 1)?.let { return it }
+                }
+            }
+            return null
+        }
+        fun dodaj(id: String, naslov: String, tr: Int?, kratek: Boolean): Boolean {
+            if (!YouTubeNarocnine.jeIdVidea(id) || naslov.isBlank() || !videni.add(id)) return false
+            izhod.add(KanalVideo(id, naslov.take(200), "", tr, kratek))
+            return true
+        }
+        fun hodi(o: Any?, g: Int) {
+            if (g > 60 || o == null || izhod.size >= najvec) return
+            when (o) {
+                is JSONArray -> for (i in 0 until o.length()) hodi(o.opt(i), g + 1)
+                is JSONObject -> {
+                    val entiteta = o.optString("entityId")
+                    val ok = when {
+                        o.optString("contentType") == "LOCKUP_CONTENT_TYPE_VIDEO" ->
+                            dodaj(o.optString("contentId"), o.optJSONObject("metadata")?.optJSONObject("lockupMetadataViewModel")
+                                ?.optJSONObject("title")?.optString("content").orEmpty(), trajanje(o.opt("contentImage"), 0), shorts)
+                        entiteta.startsWith("shorts-shelf-item-") ->
+                            dodaj(entiteta.removePrefix("shorts-shelf-item-"), o.optJSONObject("overlayMetadata")?.optJSONObject("primaryText")
+                                ?.optString("content").orEmpty(), null, true)
+                        o.has("videoId") && o.has("lengthText") && o.optJSONObject("title") != null ->
+                            dodaj(o.optString("videoId"), o.optJSONObject("title")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text")
+                                ?: o.optJSONObject("title")?.optString("simpleText").orEmpty(),
+                                YoutubeKanalVrsta.trajanje(o.optJSONObject("lengthText")?.optString("simpleText")), shorts)
+                        else -> false
+                    }
+                    if (ok) return
+                    val k = o.keys()
+                    while (k.hasNext()) hodi(o.opt(k.next()), g + 1)
+                }
+            }
+        }
+        hodi(json, 0)
+        return izhod
     }
 
     private fun uvoziPosamezno(ctx: Context, playlistId: String, naslov: String, cookies: String): Int {
@@ -344,7 +439,7 @@ object YouTubeUvoz {
         return najdeni.map { (id, naslov) -> PlaylistZapis(id, naslov) }
     }
 
-    private fun zahtevaInnerTube(browseId: String, cookies: String): JSONObject? {
+    private fun zahtevaInnerTube(browseId: String, cookies: String, params: String? = null, razlicica: String = "2.20250101.00.00"): JSONObject? {
         return try {
             val url = URL("https://www.youtube.com/youtubei/v1/browse?prettyPrint=false")
             val conn = (url.openConnection() as HttpURLConnection).apply {
@@ -356,12 +451,13 @@ object YouTubeUvoz {
                 setRequestProperty("User-Agent", UA)
                 setRequestProperty("Cookie", cookies)
                 setRequestProperty("X-YouTube-Client-Name", "1")
-                setRequestProperty("X-YouTube-Client-Version", "2.20250101.00.00")
+                setRequestProperty("X-YouTube-Client-Version", razlicica)
                 setRequestProperty("Origin", "https://www.youtube.com")
                 sapisidHash(cookies)?.let { setRequestProperty("Authorization", it) }
             }
             val telo = JSONObject().put("context", JSONObject().put("client", JSONObject()
-                .put("clientName", "WEB").put("clientVersion", "2.20250101.00.00").put("hl", "sl"))).put("browseId", browseId)
+                .put("clientName", "WEB").put("clientVersion", razlicica).put("hl", "sl"))).put("browseId", browseId)
+            if (params != null) telo.put("params", params)
             OutputStreamWriter(conn.outputStream, "UTF-8").use { it.write(telo.toString()) }
             if (conn.responseCode in 200..299) {
                 BufferedReader(InputStreamReader(conn.inputStream, "UTF-8")).use { r ->

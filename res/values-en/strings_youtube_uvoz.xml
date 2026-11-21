@@ -32,4 +32,7 @@
     <string name="yt_racun_vsi">All accounts</string>
     <string name="yt_racun_potekel">Nothing imported from: %1$s. Sign in to that account again (Add another account).</string>
     <string name="yt_racun_dodan">Account added</string>
+    <string name="yt_uvoz_narocnine_glasba">YouTube subscriptions · music</string>
+    <string name="yt_uvoz_narocnine_ostalo">YouTube subscriptions · other</string>
+    <string name="yt_uvoz_narocnine_kratki">YouTube subscriptions · Shorts</string>
 </resources>

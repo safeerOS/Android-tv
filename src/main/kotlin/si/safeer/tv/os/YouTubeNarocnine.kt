@@ -16,6 +16,8 @@ object YouTubeNarocnine {
 
     fun jeIdKanala(s: String) = ID_KANALA.matches(s)
 
+    fun jeIdVidea(s: String) = ID_VIDEA.matches(s)
+
     /** Naslov feeda za kanal; id mora biti veljaven (v naslov ne pride nic drugega). */
     fun naslovFeeda(idKanala: String): String? =
         if (jeIdKanala(idKanala)) "https://www.youtube.com/feeds/videos.xml?channel_id=$idKanala" else null

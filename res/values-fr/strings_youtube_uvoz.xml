@@ -32,4 +32,7 @@
     <string name="yt_racun_vsi">Tous les comptes</string>
     <string name="yt_racun_potekel">Rien importé depuis : %1$s. Reconnectez ce compte (Ajouter un autre compte).</string>
     <string name="yt_racun_dodan">Compte ajouté</string>
+    <string name="yt_uvoz_narocnine_glasba">Abonnements (YouTube) · musique</string>
+    <string name="yt_uvoz_narocnine_ostalo">Abonnements (YouTube) · autres</string>
+    <string name="yt_uvoz_narocnine_kratki">Abonnements (YouTube) · Shorts</string>
 </resources>

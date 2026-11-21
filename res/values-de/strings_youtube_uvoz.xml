@@ -32,4 +32,7 @@
     <string name="yt_racun_vsi">Alle Konten</string>
     <string name="yt_racun_potekel">Nichts importiert von: %1$s. Melden Sie dieses Konto erneut an (Weiteres Konto hinzufügen).</string>
     <string name="yt_racun_dodan">Konto hinzugefügt</string>
+    <string name="yt_uvoz_narocnine_glasba">Abos (YouTube) · Musik</string>
+    <string name="yt_uvoz_narocnine_ostalo">Abos (YouTube) · Sonstiges</string>
+    <string name="yt_uvoz_narocnine_kratki">Abos (YouTube) · Shorts</string>
 </resources>

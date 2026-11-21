@@ -32,4 +32,7 @@
     <string name="yt_racun_vsi">Todas las cuentas</string>
     <string name="yt_racun_potekel">No se importó nada de: %1$s. Vuelve a iniciar sesión en esa cuenta (Añadir otra cuenta).</string>
     <string name="yt_racun_dodan">Cuenta añadida</string>
+    <string name="yt_uvoz_narocnine_glasba">Suscripciones (YouTube) · música</string>
+    <string name="yt_uvoz_narocnine_ostalo">Suscripciones (YouTube) · otros</string>
+    <string name="yt_uvoz_narocnine_kratki">Suscripciones (YouTube) · Shorts</string>
 </resources>

@@ -32,4 +32,7 @@
     <string name="yt_racun_vsi">Tutti gli account</string>
     <string name="yt_racun_potekel">Nulla importato da: %1$s. Accedi di nuovo a quell\'account (Aggiungi un altro account).</string>
     <string name="yt_racun_dodan">Account aggiunto</string>
+    <string name="yt_uvoz_narocnine_glasba">Iscrizioni (YouTube) · musica</string>
+    <string name="yt_uvoz_narocnine_ostalo">Iscrizioni (YouTube) · altro</string>
+    <string name="yt_uvoz_narocnine_kratki">Iscrizioni (YouTube) · Shorts</string>
 </resources>
