@@ -447,9 +447,11 @@ object HubKrmilnik {
                 val sosedje = u.sosedjeIdji().toSet()
                 meshIskanjeMs = MeshIskanjePravila.naslednje(meshIskanjeMs, MeshIskanjePravila.sprememba(meshSosedjePrej, sosedje, kandidati.size))
                 meshSosedjePrej = sosedje
-                // 21. 11. 2026: id-ji v dnevniku (brez imen in naslovov), da se vidi, KDO je sosed in koga klicemo - brez tega se
+                // 21. 11. 2026: skrajsane oznake v dnevniku (OznakaDnevnik, brez imen in naslovov), da se vidi, KDO je sosed in koga klicemo - brez tega se
                 // »racunalnik vidi TV, TV ne vidi racunalnika« iz dnevnika ni dalo razloziti.
-                Log.i(TAG, "Mesh: sosedov ${sosedje.size} $sosedje, klicem ${kandidati.size} ${kandidati.map { it.id }}, oglasov ${hubi.size}, naslednje iskanje cez ${meshIskanjeMs / 1000} s")
+                val kdoSosed = sosedje.map { s -> OznakaDnevnik.oznaka(s) }
+                val kogaKlicem = kandidati.map { h -> OznakaDnevnik.oznaka(h.id) }
+                Log.i(TAG, "Mesh: sosedov ${sosedje.size} $kdoSosed, klicem ${kandidati.size} $kogaKlicem, oglasov ${hubi.size}, naslednje iskanje cez ${meshIskanjeMs / 1000} s")
                 pospraviKrogObCasu(app, u)
                 nacrtujIzvolitev(app, meshIskanjeMs)
                 return@poisciVse
