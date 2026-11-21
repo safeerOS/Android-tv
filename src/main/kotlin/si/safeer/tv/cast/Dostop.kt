@@ -134,8 +134,24 @@ object Dostop {
         if (jedro.isBlank()) return emptySet()
         if (jedro == lastnoJedro(ctx)) return DostopPravila.VSE_ZMOZNOSTI
         val dano = synchronized(this) { nalozen(ctx)[jedro] } ?: emptySet()
-        return DostopPravila.veljavne(dano, umaknjena(ctx, jedro))
+        val veljavno = DostopPravila.veljavne(dano, umaknjena(ctx, jedro))
+        if (veljavno.containsAll(DostopPravila.VSE_ZMOZNOSTI)) return veljavno
+        return if (poroceno(ctx, jedro)) DostopPravila.VSE_ZMOZNOSTI else veljavno
     }
+
+    /**
+     * Naprava, ki jo je v krog vpisala (podpisan vnos) naprava s polnim dostopom na TEJ napravi, ima polni dostop tudi sama
+     * (lastnik 21. 11. 2026: dodam jo na eni napravi, ne povezujem je na vsaki posebej). Ena stopnja; glej DostopPravila.poroceno.
+     */
+    private fun poroceno(ctx: Context, jedro: String): Boolean = try {
+        val krog = KrogNaprave.krog(ctx)
+        val vnos = krog.vnosZPodpisom(jedro) ?: krog.clani().firstOrNull { KrogZaupanja.idIzKljuca(it.kljuc) == jedro }?.let { krog.vnosZPodpisom(it.id) }
+        if (vnos == null) false else {
+            val porok = jedro(ctx, vnos.first)
+            val polna = synchronized(this) { nalozen(ctx).filterValues { it.containsAll(DostopPravila.VSE_ZMOZNOSTI) }.keys }
+            DostopPravila.poroceno(jedro, porok.ifBlank { null }, vnos.second, umaknjena(ctx, jedro), polna)
+        }
+    } catch (_: Throwable) { false }
 
     /**
      * Ali je naprava s tem jedrom kljuc ze dokazala (vzpostavila zascito) - ali pa je to ta naprava sama: njeni programi

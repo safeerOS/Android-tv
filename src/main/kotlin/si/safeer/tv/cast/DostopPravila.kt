@@ -150,6 +150,20 @@ object DostopPravila {
     fun privolitvePo(privolitve: Set<String>, jedro: String, dano: Set<Zmoznost>, z: Zmoznost = Zmoznost.ZASLON): Set<String> =
         if (z in dano) privolitve + jedro else privolitve - jedro
 
+    /**
+     * »Porocitev« polnega dostopa (lastnik 21. 11. 2026): uporabnik naprave, ki jo doda v ozji krog, ne povezuje na vsaki
+     * napravi posebej. Naprava [jedro] dobi polni dostop na tej napravi, ce jo je v krog vpisala (podpisan vnos)
+     * naprava, ki ji je uporabnik polni dostop na TEJ napravi odprl SAM ([polnaJedra]: zapisana dovoljenja, ne porocena).
+     * Samo ena stopnja: porocena naprava ne porocuje naprej. Vnos brez veljavnega podpisa, umaknjena naprava, napaka ali
+     * dvom = ne. Porocevalec s polnim dostopom ima na tej napravi tako ze vse, kar bi lahko dosegel z vnosom nove naprave.
+     */
+    fun poroceno(jedro: String, porocevalec: String?, podpisan: Boolean, umaknjena: Boolean, polnaJedra: Set<String>): Boolean {
+        if (jedro.isBlank() || porocevalec.isNullOrBlank()) return false
+        if (!podpisan || umaknjena) return false
+        if (porocevalec == jedro) return false
+        return porocevalec in polnaJedra
+    }
+
     /** Clan kroga, kolikor ga pravila potrebujejo. */
     class Clan(val id: String, val kljuc: String, val dodano: Double)
 

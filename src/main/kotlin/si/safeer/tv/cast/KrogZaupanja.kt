@@ -236,6 +236,18 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
         return spremenjeno
     }
 
+    /**
+     * Vnos clana [id] in ali ga je res podpisal clan [Clan.dodal] (ki je v krogu in ni umaknjen). Za »porocitev« polnega
+     * dostopa (DostopPravila.poroceno): samo podpis, ki ga preveri kljuc porocevalca, ne besedilo sporocila.
+     * Vrne par (dodal, podpisan) ali null, ce clana ni ali je umaknjen.
+     */
+    fun vnosZPodpisom(id: String): Pair<String, Boolean>? = synchronized(kljucnica) {
+        val c = clani[id]?.takeIf { jeVeljaven(it) } ?: return null
+        if (c.podpis.isBlank() || c.dodal.isBlank()) return c.dodal to false
+        val porocevalec = clanZaId(c.dodal) ?: return c.dodal to false
+        c.dodal to preveriPodpisSKljucem(porocevalec.kljuc, podatkiClana(c.id, c.kljuc, c.platforma, c.dodano, c.dodal), c.podpis)
+    }
+
     /** Javni kljuc clana (tudi prek id-ja iz kljuca) za preverjanje podpisa vnosa; prazno, ce ga ne poznamo. */
     private fun kljucClana(id: String): String = clanZaId(id)?.kljuc.orEmpty()
 

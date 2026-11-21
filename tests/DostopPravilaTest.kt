@@ -278,6 +278,24 @@ fun main() {
     preveri("secrets.sync samo zasciteno, drugi ukazi ne", p.samoZasciteno("secrets.sync") && p.samoZasciteno(" Secrets.Sync ") &&
         !p.samoZasciteno("debrid.keys") && !p.samoZasciteno("files.list"))
 
+    // Porocitev polnega dostopa (lastnik 21. 11. 2026): naprava, ki jo v krog vpise naprava s polnim dostopom, ne zahteva povezave na vsaki.
+    val polna = setOf("n-aaaaaaaaaaaaaaaa", "n-bbbbbbbbbbbbbbbb")
+    preveri("poroceno: podpisan vnos naprave s polnim dostopom da polni dostop",
+        p.poroceno("n-dddddddddddddddd", "n-aaaaaaaaaaaaaaaa", podpisan = true, umaknjena = false, polnaJedra = polna))
+    preveri("poroceno: brez veljavnega podpisa ne",
+        !p.poroceno("n-dddddddddddddddd", "n-aaaaaaaaaaaaaaaa", podpisan = false, umaknjena = false, polnaJedra = polna))
+    preveri("poroceno: umaknjena naprava ne",
+        !p.poroceno("n-dddddddddddddddd", "n-aaaaaaaaaaaaaaaa", podpisan = true, umaknjena = true, polnaJedra = polna))
+    preveri("poroceno: porok brez polnega dostopa ne (cetudi je v krogu)",
+        !p.poroceno("n-dddddddddddddddd", "n-cccccccccccccccc", podpisan = true, umaknjena = false, polnaJedra = polna))
+    preveri("poroceno: ena stopnja (porocena naprava ni v zapisanih polnih, zato ne porocuje naprej)",
+        !p.poroceno("n-eeeeeeeeeeeeeeee", "n-dddddddddddddddd", podpisan = true, umaknjena = false, polnaJedra = polna))
+    preveri("poroceno: naprava sama sebe ne porocuje",
+        !p.poroceno("n-aaaaaaaaaaaaaaaa", "n-aaaaaaaaaaaaaaaa", podpisan = true, umaknjena = false, polnaJedra = polna))
+    preveri("poroceno: prazen porok ali jedro = ne",
+        !p.poroceno("n-dddddddddddddddd", null, true, false, polna) && !p.poroceno("n-dddddddddddddddd", "", true, false, polna) &&
+            !p.poroceno("", "n-aaaaaaaaaaaaaaaa", true, false, polna))
+
     if (napak > 0) { println("\nNAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("DostopPravilaTest: OK")
 }

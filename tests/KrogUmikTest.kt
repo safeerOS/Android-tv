@@ -174,10 +174,41 @@ private fun krogSamoOdSredisca(izvorna: String) {
         preveri("$pot: trust.update samo od sredisca", vir(pot).substringAfter("\"trust.update\"").substringBefore("KrogNaprave.sprejmi").contains("krogOdSredisca("))
 }
 
+/** Porocitev polnega dostopa (21. 11. 2026): vnosZPodpisom pove, ali je vnos res podpisal clan, ki ga navaja kot »dodal«. */
+private fun porostvoPoPodpisu() {
+    val a = par(); val lina = par(); val tujec = par()
+    val idA = "${KrogZaupanja.idIzKljuca(javni(a))}-control"
+    val idLina = "${KrogZaupanja.idIzKljuca(javni(lina))}-control"
+    val krog = KrogZaupanja()
+    krog.zdruzi(vnos(idA, javni(a), 100.0, "hub"), varujUmike = true)
+    // Lino vpise naprava A in vnos podpise s svojim kljucem.
+    krog.zdruzi(vnos(idLina, javni(lina), 200.0, idA, a), varujUmike = true)
+    val v = krog.vnosZPodpisom(idLina)
+    preveri("vnos Line: porok je naprava A in podpis velja", v != null && v.first == idA && v.second)
+    // Tuj podpis v imenu A ne velja (krog vnosa z neveljavnim podpisom ne sprejme ali ga oznaci kot nepodpisanega).
+    val krog2 = KrogZaupanja()
+    krog2.zdruzi(vnos(idA, javni(a), 100.0, "hub"), varujUmike = true)
+    krog2.zdruzi(vnos(idLina, javni(lina), 200.0, idA, tujec), varujUmike = true)
+    val v2 = krog2.vnosZPodpisom(idLina)
+    preveri("tuj podpis v imenu naprave A ni dokaz porostva", v2 == null || !v2.second)
+    // Brez podpisa ni porostva.
+    val krog3 = KrogZaupanja()
+    krog3.zdruzi(vnos(idA, javni(a), 100.0, "hub"), varujUmike = true)
+    krog3.zdruzi(vnos(idLina, javni(lina), 200.0, idA), varujUmike = true)
+    val v3 = krog3.vnosZPodpisom(idLina)
+    preveri("vnos brez podpisa ni dokaz porostva", v3 == null || !v3.second)
+    // Umik Line prekine porostvo.
+    krog.umakni(idLina, idA, 300.0)
+    preveri("umaknjena Lina nima vnosa", krog.vnosZPodpisom(idLina) == null)
+    // Neznan clan.
+    preveri("neznana naprava nima vnosa", krog.vnosZPodpisom("n-0000000000000000") == null)
+}
+
 fun main(args: Array<String>) {
     nepodpisanVnosNeIzbriseUmika()
     podpisanVnosVrneNapravoBrezDovoljenj()
     drugoOstaneKotPrej()
+    porostvoPoPodpisu()
     krogSamoOdSredisca(args.firstOrNull().orEmpty())
     println("KrogUmikTest: OK ($preverb preverb)")
 }

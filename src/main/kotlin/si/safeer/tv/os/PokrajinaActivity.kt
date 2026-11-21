@@ -2015,14 +2015,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             zadnjaPloscica = nove.first()
         }
         
-        if (nicPripetega) {
-            val opozorilo = besedilo(getString(R.string.pk_dodaj_gledas), 16f, R.color.os_umirjeno).apply {
-                setPadding(dp(10), dp(10), dp(10), dp(10))
-            }
-            vrstaAplikacij.addView(opozorilo, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.CENTER_VERTICAL
-            })
-        }
+        // Lastnik 21. 11. 2026: napisa »Dodaj, kar gledas« na domacem zaslonu ni vec (ob prazni vrsti ostane samo gumb za dodajanje).
 
         for (id in vrsta) {
             val a = poPaketu[id]
