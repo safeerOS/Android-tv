@@ -35,4 +35,7 @@
     <string name="yt_uvoz_narocnine_glasba">Iscrizioni (YouTube) · musica</string>
     <string name="yt_uvoz_narocnine_ostalo">Iscrizioni (YouTube) · altro</string>
     <string name="yt_uvoz_narocnine_kratki">Iscrizioni (YouTube) · Shorts</string>
+    <string name="yt_glasba_albumi">Album (YouTube Music)</string>
+    <string name="yt_glasba_album_pripravljam">Preparo l’album %1$s…</string>
+    <string name="yt_glasba_album_ni">Impossibile aprire l’album.</string>
 </resources>

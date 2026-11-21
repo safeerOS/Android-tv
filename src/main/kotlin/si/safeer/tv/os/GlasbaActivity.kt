@@ -7729,7 +7729,7 @@ class GlasbaActivity : OsActivity() {
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(16)
+        val rezultati = arrayOfNulls<Any>(17)
         val obseg = if (samoDodatek != null) OsPravila.OBSEG_VSE else obsegIskanja()
         val stremioNaslovi = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
@@ -7784,6 +7784,10 @@ class GlasbaActivity : OsActivity() {
             { if (samoDodatek != null || (Stremio.zKatalogom(stremioNaslovi).isEmpty() && !MedijskiViri.VGRAJENI_SPLETNI_VIRI)) emptyList<Jamendo.Skladba>()
               else try { IzvirniJeziki.poNaslovu(applicationContext, beseda).map { (n, tip) -> Stremio.vnosPoImdb(tip, n.imdb, n.naslov, n.leto) } }
               catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            // Lastnik 21. 11. 2026 (ideja Musike): albumi YouTube Music brez prijave; klik predvaja album po vrsti.
+            { if (samoDodatek != null || beseda.length < 3) emptyList<YoutubeGlasba.Element>()
+              else try { YoutubeGlasbaOmrezje.isci(beseda).filter { it.vrsta == YoutubeGlasba.Vrsta.ALBUM }.take(8) }
+              catch (_: Exception) { emptyList<YoutubeGlasba.Element>() } },
         )
         // Iskanje v zasebnem dodatku vprasa samo ta dodatek (opravilo 11); ostali viri ostanejo prazni.
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit {
@@ -7804,6 +7808,7 @@ class GlasbaActivity : OsActivity() {
             @Suppress("UNCHECKED_CAST") val javnaLast = rezultati[9] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val tuneInSurovi = rezultati[10] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val izWikidate = (rezultati[15] as? List<Jamendo.Skladba>).orEmpty()
+            @Suppress("UNCHECKED_CAST") val ytAlbumi = (rezultati[16] as? List<YoutubeGlasba.Element>).orEmpty()
             // Isti film iz kataloga (po IMDb) ostane katalogov; Wikidata doda samo, cesar katalogi niso nasli.
             @Suppress("UNCHECKED_CAST") val izKatalogovIsk = ((rezultati[11] as? List<Jamendo.Skladba>).orEmpty() + (rezultati[13] as? List<Jamendo.Skladba>).orEmpty())
             val imdbKatalogov = izKatalogovIsk.mapNotNullTo(HashSet()) { it.imdbId.takeIf { i -> i.isNotBlank() } }
@@ -7932,6 +7937,9 @@ class GlasbaActivity : OsActivity() {
                             dolgo = { preklopiUsenetAlbum(z.naslov, z.velikost) },
                             oznaka = if (UsenetAlbumi.je(this, z.naslov)) "★" else "",
                             ikona = R.drawable.os_ikona_glasba, id = "usenet:" + UsenetPravila.idToka(z.povezava))
+                    }, skladbe = true),
+                    Vrsta(getString(R.string.yt_glasba_albumi), ytAlbumi.map { a ->
+                        Kartica(a.naslov, a.podnaslov, a.slika, { predvajajYtAlbum(a) }, ikona = R.drawable.os_ikona_glasba, id = "ytm-album:" + a.id)
                     }, skladbe = true),
                     Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(poUjemanju(dGlasba) + (if (vGlasbo) poUjemanju(dVideo) else emptyList()) +
                         glasba + spletAvdio + spletVideospoti), beseda), skladbe = true),
@@ -8917,6 +8925,23 @@ class GlasbaActivity : OsActivity() {
      * [drugi]: zadetki istega iskanja. Lastnik 28. 10. 2026 (kvota): pri »luknja« najvec NAJVEC_DRUGIH_IZDAJ drugi izdaji
      * istega albuma ([poskus] steje), druge napake brez ponovitve.
      */
+    /** Album YouTube Music po vrsti (lastnik 21. 11. 2026): skladbe gredo v isto vrsto kot uvozeni seznami YouTube. */
+    private fun predvajajYtAlbum(e: YoutubeGlasba.Element) {
+        Toast.makeText(this, getString(R.string.yt_glasba_album_pripravljam, e.naslov), Toast.LENGTH_SHORT).show()
+        Thread({
+            val album = try { YoutubeGlasbaOmrezje.album(e.id) } catch (_: Exception) { null }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (album == null) { Toast.makeText(this, R.string.yt_glasba_album_ni, Toast.LENGTH_LONG).show(); return@runOnUiThread }
+                val izvajalec = album.izvajalec.ifBlank { e.podnaslov.substringBefore(" • ") }
+                val enote = album.skladbe.map { s ->
+                    SpletniVir.enota("https://www.youtube.com/watch?v=" + s.id, s.naslov, izvajalec, e.slika.ifBlank { "https://i.ytimg.com/vi/" + s.id + "/mqdefault.jpg" }, false)
+                }
+                predvajajVrstoPosnetkov(enote, enote.first())
+            }
+        }, "safeer-ytm-album").start()
+    }
+
     private fun predvajajUsenetAlbum(z: UsenetPravila.Zadetek, beseda: String, drugi: List<UsenetPravila.Zadetek> = emptyList(),
                                      poskus: Int = 0, prvi: String = z.naslov) {
         val app = applicationContext

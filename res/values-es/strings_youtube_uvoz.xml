@@ -35,4 +35,7 @@
     <string name="yt_uvoz_narocnine_glasba">Suscripciones (YouTube) · música</string>
     <string name="yt_uvoz_narocnine_ostalo">Suscripciones (YouTube) · otros</string>
     <string name="yt_uvoz_narocnine_kratki">Suscripciones (YouTube) · Shorts</string>
+    <string name="yt_glasba_albumi">Álbumes (YouTube Music)</string>
+    <string name="yt_glasba_album_pripravljam">Preparando el álbum %1$s…</string>
+    <string name="yt_glasba_album_ni">No se pudo abrir el álbum.</string>
 </resources>

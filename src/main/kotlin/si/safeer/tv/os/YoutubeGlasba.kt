@@ -15,7 +15,7 @@ object YoutubeGlasba {
     enum class Vrsta { SKLADBA, ALBUM, IZVAJALEC }
 
     /** [id]: videoId (skladba) ali browseId (album »MPRE…«, izvajalec »UC…«). [podnaslov]: npr. »Nirvana • 1993«. */
-    data class Element(val vrsta: Vrsta, val id: String, val naslov: String, val podnaslov: String)
+    data class Element(val vrsta: Vrsta, val id: String, val naslov: String, val podnaslov: String, val slika: String = "")
     data class AlbumSkladba(val id: String, val naslov: String, val sekund: Int)
     data class Album(val id: String, val naslov: String, val izvajalec: String, val leto: String, val skladbe: List<AlbumSkladba>)
 
@@ -63,6 +63,13 @@ object YoutubeGlasba {
     private fun stolpec(v: JSONObject, i: Int): String =
         besedilo(v.optJSONArray("flexColumns")?.optJSONObject(i)?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")?.optJSONObject("text"))
 
+    /** Naslovnica vrstice (najvecja slicica, samo https). */
+    private fun slikaVrstice(v: JSONObject): String {
+        val s = v.optJSONObject("thumbnail")?.optJSONObject("musicThumbnailRenderer")?.optJSONObject("thumbnail")?.optJSONArray("thumbnails") ?: return ""
+        val url = s.optJSONObject(s.length() - 1)?.optString("url").orEmpty()
+        return if (url.startsWith("https://")) url else ""
+    }
+
     /** Skladbe, albumi in izvajalci iz odgovora iskanja; ostalo (videi, epizode, seznami, podcasti, profili) izpusti. */
     fun razclenIskanje(d: JSONObject): List<Element> {
         val izhod = ArrayList<Element>()
@@ -78,7 +85,7 @@ object YoutubeGlasba {
             when {
                 vrsta == "Song" && ID_POSNETKA.matches(posnetek) -> izhod += Element(Vrsta.SKLADBA, posnetek, naslov, podnaslov)
                 (vrsta == "Album" || vrsta == "EP" || vrsta == "Single") && ID_ALBUMA.matches(brskanje) ->
-                    izhod += Element(Vrsta.ALBUM, brskanje, naslov, podnaslov)
+                    izhod += Element(Vrsta.ALBUM, brskanje, naslov, podnaslov, slikaVrstice(v))
                 vrsta == "Artist" && ID_IZVAJALCA.matches(brskanje) -> izhod += Element(Vrsta.IZVAJALEC, brskanje, naslov, podnaslov)
             }
         }

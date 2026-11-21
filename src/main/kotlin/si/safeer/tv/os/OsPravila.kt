@@ -1487,12 +1487,12 @@ object OsPravila {
     /**
      * Ali opravilo iskanja [opravilo] (indeks v GlasbaActivity.isci) tece v obsegu [obseg]: 0 Jamendo, 1 PeerTube, 2 radio,
      * 3 izvajalci, 4 ta naprava, 5 naprave v Linku, 6 podkasti, 7 Archive.org, 8 spletni viri, 9 javna last, 10 TuneIn,
-     * 11 dodatki, 12 vgrajeni kanali TV, 13 iskalni katalogi (YouTube), 14 Usenet glasba, 15 naslovi Wikidata.
+     * 11 dodatki, 12 vgrajeni kanali TV, 13 iskalni katalogi (YouTube), 14 Usenet glasba, 15 naslovi Wikidata, 16 albumi YouTube Music.
      */
     fun opraviloVObsegu(obseg: Int, opravilo: Int): Boolean = when (obseg) {
         OBSEG_FILMI -> opravilo in setOf(9, 11, 15)
         OBSEG_POSNETKI -> opravilo in setOf(1, 7, 8, 13)
-        OBSEG_GLASBA -> opravilo in setOf(0, 3, 11, 14)
+        OBSEG_GLASBA -> opravilo in setOf(0, 3, 11, 14, 16)
         OBSEG_RADIO -> opravilo in setOf(2, 6, 10, 11)
         OBSEG_TV -> opravilo in setOf(11, 12)
         OBSEG_NAPRAVE -> opravilo in setOf(4, 5)

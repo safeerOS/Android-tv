@@ -13,7 +13,7 @@ fun main() {
     System.getenv("SAFEER_YTM_ISKANJE")?.let { pot ->
         val r = G.razclenIskanje(JSONObject(File(pot).readText()))
         preveriGlasba("iskanje ima skladbe", r.any { it.vrsta == Vrsta.SKLADBA && it.id.length == 11 })
-        preveriGlasba("iskanje ima album", r.any { it.vrsta == Vrsta.ALBUM && it.id.startsWith("MPRE") })
+        preveriGlasba("iskanje ima album s sliko", r.any { it.vrsta == Vrsta.ALBUM && it.id.startsWith("MPRE") && it.slika.startsWith("https://") })
         preveriGlasba("iskanje ima izvajalca", r.any { it.vrsta == Vrsta.IZVAJALEC && it.id.startsWith("UC") && it.naslov == "Nirvana" })
         preveriGlasba("brez epizod in seznamov", r.none { it.naslov.contains("Baby", ignoreCase = true) && it.vrsta != Vrsta.SKLADBA })
         println("iskanje: " + r.take(4).joinToString { "${it.vrsta}:${it.naslov}[${it.podnaslov}]" })

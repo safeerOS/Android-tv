@@ -35,4 +35,7 @@
     <string name="yt_uvoz_narocnine_glasba">Naročnine (YouTube) · glasba</string>
     <string name="yt_uvoz_narocnine_ostalo">Naročnine (YouTube) · ostalo</string>
     <string name="yt_uvoz_narocnine_kratki">Naročnine (YouTube) · kratki posnetki</string>
+    <string name="yt_glasba_albumi">Albumi (YouTube Music)</string>
+    <string name="yt_glasba_album_pripravljam">Pripravljam album %1$s …</string>
+    <string name="yt_glasba_album_ni">Albuma ni mogoče odpreti.</string>
 </resources>
