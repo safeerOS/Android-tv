@@ -27,3 +27,9 @@ ne podpira, ne potrjuje in ne odobrava (This product uses TMDB and the TMDB APIs
 but is not endorsed, certified, or otherwise approved by TMDB). Podatki TMDB se
 ne dajo umetni inteligenci (Lina, agent). Brezplacna raba samo za nekomercialne
 namene.
+
+Zamisli iz odprtih projektov
+----------------------------
+Izbira uradnega posnetka skladbe in album, predvajan po vrsti (oddelek Glasba), sta
+narejena po zamisli projekta Musike (Ernani1234, licenca MIT,
+https://github.com/Ernani1234/musike). Koda je napisana na novo, prevzete kode ni.
