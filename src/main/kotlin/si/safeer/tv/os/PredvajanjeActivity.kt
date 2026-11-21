@@ -807,11 +807,26 @@ class PredvajanjeActivity : OsActivity() {
     private fun zatemniIzNamena() {
         if (!intent.getBooleanExtra(ZATEMNI, false)) return
         intent.removeExtra(ZATEMNI)
+        val polno = intent.getBooleanExtra(ZATEMNI_POLNO, false)
+        intent.removeExtra(ZATEMNI_POLNO)
         // Za odprtjem vrste kartic (na dotik, glavna.post v onStart), ki zaslon zbudi - sicer bi
         // zatemnitev takoj izginila (preizkus 1. 10. 2026: "Zatemni zaslon" na telefonu ni deloval).
         // Namerna zatemnitev velja tudi, ce je zaslon prej izgubil fokus okna (medijski center nad njim): vrnitev fokusa
         // je ne sme razveljaviti ([onWindowFocusChanged]).
-        glavna.post { if (!isFinishing && (!jeVideo() || igraVOzadju())) { glavna.removeCallbacks(zatemni); zatemnitevCaka = false; tema.visibility = View.VISIBLE; osveziCas() } }
+        glavna.post { if (!isFinishing && (!jeVideo() || igraVOzadju())) { glavna.removeCallbacks(zatemni); zatemnitevCaka = false; tema.visibility = View.VISIBLE; polnaTema(polno); osveziCas() } }
+    }
+
+    /**
+     * Polna tema: nic besedila na zaslonu (ura in naslov skrita) in osvetlitev okna na nic (BRIGHTNESS_OVERRIDE_OFF; ce televizor
+     * tega ne podpira, ostane vsaj povsem crn zaslon). Vsaka tipka zaslon zbudi ([zbudi]) in vse povrne.
+     */
+    private fun polnaTema(vkljuci: Boolean) {
+        try {
+            if (::tema.isInitialized && tema.childCount > 0) tema.getChildAt(0).visibility = if (vkljuci) View.INVISIBLE else View.VISIBLE
+            val lp = window.attributes
+            lp.screenBrightness = if (vkljuci) android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF else android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            window.attributes = lp
+        } catch (_: Throwable) { }
     }
 
     /**
@@ -943,6 +958,8 @@ class PredvajanjeActivity : OsActivity() {
         /** Razmik med karticami omejene vrste in mreze (dp). */
         private const val RAZMIK_KARTIC = 12
         const val ZATEMNI = "zatemni"
+        /** Lastnik 21. 11. 2026 (dolg pritisk na lunico): povsem crn zaslon brez ure in naslova, osvetlitev na najmanj; zvok igra naprej. */
+        const val ZATEMNI_POLNO = "zatemni_polno"
         /** Iz obvestila ali predvajalnika sistema: odpri izbiro naprave (zvocniki v omrezju, naprave Linka, Bluetooth). */
         const val IZBERI_NAPRAVO = "izberi_napravo"
         const val NADALJUJ = "nadaljuj"
@@ -2818,6 +2835,7 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun zbudi() {
         tema.visibility = View.GONE
+        polnaTema(false)
         prekritje.animate().cancel(); prekritje.alpha = 1f
         posodobiIme()
         glavna.removeCallbacks(skrij); glavna.postDelayed(skrij, OsPravila.PAS_SKRIJ_MS)

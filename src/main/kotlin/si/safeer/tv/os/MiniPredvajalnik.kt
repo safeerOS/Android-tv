@@ -133,6 +133,14 @@ class MiniPredvajalnik(
         } catch (_: Throwable) { }
     }
 
+    /** Dolg pritisk na lunico: popolnoma crn zaslon brez besedila, osvetlitev na najmanj ([PredvajanjeActivity.ZATEMNI_POLNO]). */
+    private fun zatemniPolno() {
+        try {
+            a.startActivity(android.content.Intent(a, PredvajanjeActivity::class.java).putExtra(PredvajanjeActivity.ZATEMNI, true)
+                .putExtra(PredvajanjeActivity.ZATEMNI_POLNO, true).addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        } catch (_: Throwable) { }
+    }
+
     private fun odpriPredvajalnik() = odpriCelZaslon(a)
 
     val mesto: String get() = MiniPredvajalnikPravila.mesto(nastavitve.getString(KLJUC_MESTO, null))
@@ -458,7 +466,7 @@ class MiniPredvajalnik(
         if (pokoncen) c.addView(besedila, LinearLayout.LayoutParams(dp(180), ViewGroup.LayoutParams.WRAP_CONTENT))
         else c.addView(besedila, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         val g = dp(if (daljinec) 48 else 44)
-        fun gumb(ikona: Int, opis: String, oznaka: String, dejanje: () -> Unit) = ImageButton(a).apply {
+        fun gumb(ikona: Int, opis: String, oznaka: String, dolgo: (() -> Unit)? = null, dejanje: () -> Unit) = ImageButton(a).apply {
             setImageResource(ikona); contentDescription = opis; tag = oznaka
             imageTintList = ColorStateList.valueOf(barva(R.color.os_besedilo))
             setBackgroundResource(R.drawable.os_meni_postavka)
@@ -468,6 +476,7 @@ class MiniPredvajalnik(
                 try { dejanje() } catch (_: Throwable) { }
                 glavna.postDelayed({ osvezi() }, 300)
             }
+            dolgo?.let { d -> setOnLongClickListener { try { d() } catch (_: Throwable) { }; true } }
         }
         val gumbi = LinearLayout(a).apply { orientation = if (pokoncen) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         gumbi.addView(gumb(R.drawable.os_ikona_prejsnja, a.getString(R.string.zg_prejsnja), "dock:prejsnja") { if (prikazujeTuje) TujePredvajanje.prejsnja() else GlasbaStoritev.prejsnja() }, LinearLayout.LayoutParams(g, g))
@@ -495,7 +504,7 @@ class MiniPredvajalnik(
         // Naloga 42 B: glasnost brez zapuscanja domacega zaslona (kot na racunalniku) - tiste naprave, ki igra.
         gumbi.addView(gumb(R.drawable.os_ikona_tisje, a.getString(R.string.zvocnik_tisje), "dock:tisje") { glasnost(-1) }, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_glasneje, a.getString(R.string.zvocnik_glasneje), "dock:glasneje") { glasnost(1) }, LinearLayout.LayoutParams(g, g))
-        val gZatemni = gumb(R.drawable.os_ikona_luna, a.getString(R.string.os_media_zatemni), "dock:zatemni") { zatemni() }
+        val gZatemni = gumb(R.drawable.os_ikona_luna, a.getString(R.string.os_media_zatemni), "dock:zatemni", dolgo = { zatemniPolno() }) { zatemni() }
         gumbi.addView(gZatemni, LinearLayout.LayoutParams(g, g))
         // Lastnik 1. 11. 2026: ✕ je samo skril predvajalnik, film je igral naprej - uporabnik pricakuje konec predvajanja.
         // ✕ zato ustavi predvajanje in skrije dock; samo skrije ga tipka Nazaj (skrijCeOdprt).
