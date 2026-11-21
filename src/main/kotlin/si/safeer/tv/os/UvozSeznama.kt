@@ -294,7 +294,7 @@ object UvozSeznama {
     fun iskanjeYoutube(q: String): String? =
         beri("https://www.youtube.com/youtubei/v1/search?prettyPrint=false", youtube = true, telo = YoutubeMixPravila.zahtevaIskanja(q))
 
-    private fun beri(naslov: String, youtube: Boolean = false, telo: String? = null): String? {
+    internal fun beri(naslov: String, youtube: Boolean = false, telo: String? = null): String? {
         val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return null }
         return try {
             p.connectTimeout = 8_000; p.readTimeout = 12_000
