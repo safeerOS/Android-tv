@@ -216,8 +216,40 @@ object UvozSeznama {
             ?: beri("https://www.youtube.com/results?search_query=" + URLEncoder.encode(poizvedba, "UTF-8") + "&hl=en", youtube = true)
                 ?.let { jsonZa(it, "ytInitialData") }
             ?: return null
-        val id = izberiZadetek(NedelujocePravila.brezIzlocenih(zadetkiIskanja(podatki), izloci), sekund) ?: return null
+        // Najprej uradni posnetek izvajalca (Musike, 21. 11. 2026); sicer dosedanja izbira po dolzini.
+        val uradni = if (s.izvajalec.isBlank()) null
+            else UradniPosnetek.izberi(podrobniZadetki(podatki).filter { it.id !in izloci }, s.naslov, s.izvajalec, sekund)
+        val id = uradni ?: izberiZadetek(NedelujocePravila.brezIzlocenih(zadetkiIskanja(podatki), izloci), sekund) ?: return null
         return SpletniVir.enota("https://www.youtube.com/watch?v=$id", s.naslov, s.izvajalec, "https://i.ytimg.com/vi/$id/mqdefault.jpg", false)
+    }
+
+    /** Zadetki z naslovom in kanalom (samo videoRenderer; lockupViewModel kanala ne da zanesljivo, tam odloca dolzina). */
+    internal fun podrobniZadetki(d: JSONObject): List<UradniPosnetek.Zadetek> {
+        val izhod = ArrayList<UradniPosnetek.Zadetek>()
+        fun sekunde(t: String): Int = t.trim().split(':').mapNotNull { it.toIntOrNull() }.takeIf { it.size in 2..3 }
+            ?.fold(0) { a, b -> a * 60 + b } ?: 0
+        fun hodi(x: Any?, globina: Int) {
+            if (globina > 60 || izhod.size >= 12) return
+            when (x) {
+                is JSONArray -> for (i in 0 until x.length()) hodi(x.opt(i), globina + 1)
+                is JSONObject -> {
+                    val v = x.optJSONObject("videoRenderer")
+                    if (v != null) {
+                        val id = v.optString("videoId")
+                        val naslov = v.optJSONObject("title")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text").orEmpty()
+                        val kanal = v.optJSONObject("ownerText")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text").orEmpty()
+                        if (id.isNotBlank() && naslov.isNotBlank()) {
+                            izhod += UradniPosnetek.Zadetek(id, naslov, kanal, sekunde(v.optJSONObject("lengthText")?.optString("simpleText").orEmpty()))
+                        }
+                        return
+                    }
+                    val k = x.keys()
+                    while (k.hasNext()) hodi(x.opt(k.next()), globina + 1)
+                }
+            }
+        }
+        hodi(d, 0)
+        return izhod
     }
 
     /** (id, dolzina v sekundah) zadetkov iskanja po vrsti; razume videoRenderer in lockupViewModel. */

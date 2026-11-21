@@ -143,6 +143,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/YouTubeNarocnineTest.kt" \
     "$SRC/si/safeer/tv/os/YoutubeKanalVrsta.kt" \
     "$TEST_DIR/YoutubeKanalVrstaTest.kt" \
+    "$SRC/si/safeer/tv/os/UradniPosnetek.kt" \
+    "$TEST_DIR/UradniPosnetekTest.kt" \
     "$SRC/si/safeer/tv/os/TmdbPravila.kt" \
     "$TEST_DIR/TmdbPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/YouTubeRacuniPravila.kt" \
@@ -392,6 +394,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkriteAplikacijePravilaTestK
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.KrogProsnjaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" YouTubeNarocnineTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" YoutubeKanalVrstaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" UradniPosnetekTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" TmdbPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" YouTubeRacuniPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaPravilaTestKt
