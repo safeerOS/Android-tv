@@ -13688,6 +13688,8 @@ class GlasbaActivity : OsActivity() {
                         MiniPredvajalnikPravila.okenceSmePripeti(PredvajanjeActivity.odprt, p.isCommandAvailable(Player.COMMAND_SET_VIDEO_SURFACE))
                     if (MiniPredvajalnikPravila.predvajajNaCelZaslon(sk?.video == true, GlasbaStoritev.igra(), vPasu, smePripeti))
                         MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
+                    else if (MiniPredvajalnikPravila.predvajajVPasuNaCelZaslonTv(jeTv(), sk?.video == true, GlasbaStoritev.igra()))
+                        MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)   // TV: cel zaslon; NADALJUJ tam sam nadaljuje (nadaljujTu)
                     else GlasbaStoritev.preklopi()   // premor/naprej; video ostane v pasu (ustavljen se pripravi znova)
                 }
             }

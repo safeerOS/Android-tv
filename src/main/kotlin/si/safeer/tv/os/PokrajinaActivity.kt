@@ -444,6 +444,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     override fun onResume() {
         super.onResume()
         Zaganjalnik.domNaZaslonu(this, true)
+        // Tipka Viri (21. 11. 2026): pravi domaci zaslon TV je ta (ZaganjalnikAlias kaze sem), DomovActivity se na TV
+        // skoraj nikoli ne odpre - zato alias zaslona virov ni bil nikoli vklopljen in tipka SOURCES ni pokazala nicesar.
+        ViriActivity.uskladi(this)
         // Zunanji pregled 3. 11. 2026: komentar zgoraj je to obljubljal, klic pa je bil samo po minuti mirovanja in brez
         // nalozenega posnetka (po filmu v pavzi nikoli). Kot DomovActivity: ob vsaki vrnitvi domov, cez 3 s;
         // pocistiOzadje samo preveri, ali zvok res igra (pavza ni zvok v ozadju).

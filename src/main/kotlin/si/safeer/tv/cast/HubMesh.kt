@@ -96,7 +96,7 @@ object HubMesh {
 
     /** Oglasi iz mDNS, dopolnjeni z zapomnjenimi naslovi sosedov, ki jih mDNS ta hip ne vidi. */
     /** Sosed se je povezal (v katero koli smer): premor po neuspelih klicih zanj izbrisemo. */
-    fun sosedTu(id: String) { nedosegljivDo.remove(id); neuspehi.remove(id) }
+    fun sosedTu(id: String) { nedosegljivDo.remove(id); neuspehi.remove(id); zavrnjen.remove(id) }
 
     /** Pozabi zapomnjeni naslov soseda (naslov zdaj pripada drugi napravi ali je naprava umaknjena). */
     fun pozabi(context: Context, id: String) {
@@ -225,6 +225,15 @@ object HubMesh {
                 // 401 = sosed nas (se) nima v svojem krogu (npr. telefon po ponovni seznanitvi): ne trkamo vsakih 20 s,
                 // ampak s premorom, ki raste; oglas mDNS ali njegov klic k nam ga izbrise.
                 Log.i(TAG, "${h.id}: izziva ni ($koda)"); klicem.remove(h.id)
+                // Meritev na TV 21. 11. 2026: premor v `nedosegljivDo` je vsak oglas mDNS takoj izbrisal (zDopolnitvijo),
+                // zato je TV soseda, ki ga zavraca s 401, klical vsakih 15-19 s brez konca. Zavrnitev (401/403) gre v
+                // `zavrnjen`, ki ga oglas ne brise - izbrise ga sprejem ali sosedov klic k nam (sosedTu).
+                if (koda == 401 || koda == 403) {
+                    val prej = zavrnjen[h.id]?.second ?: 0L
+                    val premor = (if (prej == 0L) PREMOR_MS else prej * 2).coerceAtMost(NAJDALJSI_PREMOR_MS)
+                    zavrnjen[h.id] = (System.currentTimeMillis() + premor) to premor
+                    return@klic
+                }
                 val prej = nedosegljivDo[h.id]?.second ?: 0L
                 val premor = (if (prej == 0L) PREMOR_MS else prej * 2).coerceAtMost(NAJDALJSI_PREMOR_MS)
                 nedosegljivDo[h.id] = (System.currentTimeMillis() + premor) to premor

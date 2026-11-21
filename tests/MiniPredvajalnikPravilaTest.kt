@@ -221,6 +221,10 @@ fun main() {
     preveriEnako("pas: video ni v okencu -> cel zaslon", true, MiniPredvajalnikPravila.predvajajNaCelZaslon(true, false, false, true))
     preveriEnako("pas: video igra -> premor v pasu", false, MiniPredvajalnikPravila.predvajajNaCelZaslon(true, true, false, false))
     preveriEnako("pas: zvok -> v pasu", false, MiniPredvajalnikPravila.predvajajNaCelZaslon(false, false, false, false))
+    preveriEnako("pas TV: ustavljen video -> cel zaslon", true, MiniPredvajalnikPravila.predvajajVPasuNaCelZaslonTv(true, true, false))
+    preveriEnako("pas TV: video igra -> premor v pasu", false, MiniPredvajalnikPravila.predvajajVPasuNaCelZaslonTv(true, true, true))
+    preveriEnako("pas TV: zvok -> v pasu", false, MiniPredvajalnikPravila.predvajajVPasuNaCelZaslonTv(true, false, false))
+    preveriEnako("pas telefon: ustavljen video -> v pasu", false, MiniPredvajalnikPravila.predvajajVPasuNaCelZaslonTv(false, true, false))
     // Slepi pregled (2): skrito okence z videom -> pavza, razen ce sliko prevzame zaslon, menjava konfiguracije ali YouTube zvok.
     preveriEnako("pavzaObSkritju: video tece, nic drugega -> pavza", true, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, false, false, false))
     preveriEnako("pavzaObSkritju: zaslon predvajanja odprt -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, true, false, false))

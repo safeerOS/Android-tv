@@ -317,7 +317,8 @@ object MiniPredvajalnikPravila {
     fun okenceSmePripeti(zaslonOdprt: Boolean, povrsinaMozna: Boolean): Boolean = !zaslonOdprt && povrsinaMozna
 
     /** Rok, v katerem »Nadaljuj« s pasu pocaka na zacetek predvajanja (razresitev toka traja); potem ne odpira vec nicesar. */
-    const val CELOZASLONSKO_ROK_MS = 25_000L
+    // Lastnik 21. 11. 2026: tok iz debrida ali Useneta se lahko razresuje dlje kot 25 s - video je potem ostal v pasu.
+    const val CELOZASLONSKO_ROK_MS = 120_000L
 
     /**
      * Lastnik 18. 11. 2026 (TV): »Nadaljuj« na pasu Doma je zacel video samo v pasu. Video, ki ga je uporabnik nadaljeval
@@ -329,6 +330,12 @@ object MiniPredvajalnikPravila {
     /** Predvajaj na pasu: video, ki ne igra in ga pas ne more pokazati (ni okenca ali povrsine), gre na cel zaslon. */
     fun predvajajNaCelZaslon(video: Boolean, igra: Boolean, vPasu: Boolean, smePripeti: Boolean): Boolean =
         video && !igra && !(vPasu && smePripeti)
+
+    /**
+     * Lastnik 21. 11. 2026 (TV): Predvajaj na pasu Doma je ustavljen video nadaljeval samo v pasu. Na televizorju video,
+     * ki ga uporabnik s pasu pozene, vedno nadaljuje na celem zaslonu; premor videa, ki ze igra, ostane v pasu.
+     */
+    fun predvajajVPasuNaCelZaslonTv(tv: Boolean, video: Boolean, igra: Boolean): Boolean = tv && video && !igra
 
     /**
      * Okence, ki je kazalo video, izgine (drug razdelek, podstran, onStop): video brez slike nima smisla (lastnik 11. 10.
