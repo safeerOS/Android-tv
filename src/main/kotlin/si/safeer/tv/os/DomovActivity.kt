@@ -572,6 +572,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Kuverta Sporocil v glavi (znacka neprebranih). */
     override fun onResume() {
+        ViriActivity.uskladi(this)   // tipka za vire: Googlov zaganjalnik se je morda izklopil, odkar je domaci zaslon tekel
         super.onResume()
         Pomnilnik.vrnitevDomov()   // nazadnje zagnana aplikacija je bila v rabi do zdaj (lastni zapis uporabe)
         Pomnilnik.pocistiObVrnitviDomov(this)

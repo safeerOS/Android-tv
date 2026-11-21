@@ -19,6 +19,9 @@ class ZagonPrejemnikOs : BroadcastReceiver() {
             akcija != Intent.ACTION_MY_PACKAGE_REPLACED
         ) return
         val app = context?.applicationContext ?: return
+        // Tipka Viri na daljincu (lastnik 21. 11. 2026): alias zaslona virov se uskladi tudi ob vklopu in posodobitvi, ne samo ob
+        // odprtju domaceg zaslona - Googlov zaganjalnik se lahko izklopi, ko Safeer OS ze tece (alias je ostal izklopljen).
+        ViriActivity.uskladi(app)
         // Po posodobitvi in vklopu: Safeer Vnos sledi ozjemu krogu (link/VnosVklop), tudi ce se Safeer OS ne odpre. Samo
         // ob zascitenih sistemskih oddajah - QUICKBOOT_POWERON lahko poslje katerakoli aplikacija (pregled tv-vnos, 4).
         if (si.safeer.tv.link.VnosVklopPravila.uskladiObOddaji(akcija)) si.safeer.tv.link.VnosVklop.uskladi(app, akcija)
