@@ -3,7 +3,6 @@ package si.safeer.tv.cast
 import android.content.Context
 import android.util.Log
 import org.json.JSONArray
-import org.json.JSONObject
 import si.safeer.tv.cast.DostopPravila.Zahteva
 import si.safeer.tv.cast.DostopPravila.Zmoznost
 
@@ -21,137 +20,44 @@ import si.safeer.tv.cast.DostopPravila.Zmoznost
  */
 object Dostop {
     private const val TAG = "SafeerDostop"
-    private const val PREFS = "safeer_dostop"
-    private const val KLJUC_NAPRAVE = "naprave"
-    private const val KLJUC_PODEDOVANO = "podedovano_ob"
     private const val KLJUC_ZASCITA = "zascita"
-    /** Jedra naprav, ki jim je uporabnik zaslon odprl s privolitvijo (DostopPravila.zaslonSPrivolitvijo). */
-    private const val KLJUC_PRIVOLITEV_ZASLONA = "privolitev_zaslona"
-    /** Jedra naprav s privolitvijo za datoteke po uvedbi `fs:` (link/DatotekeStreznik.smeVseDatoteke). */
-    private const val KLJUC_PRIVOLITEV_DATOTEK = "privolitev_datotek"
 
-    private var zapis: HashMap<String, Set<Zmoznost>>? = null
     private var zascita: HashSet<String> = HashSet()
+    private var zascitaBrana = false
 
     /** Klice se ob vsaki spremembi dovoljenj (zaslon naprav, objava stanja). */
     @Volatile var naSpremembo: (() -> Unit)? = null
 
     init {
-        // Umik naprave iz kroga takoj zbrise njen zapis dovoljenj (pregled 10. 11. 2026, A).
-        KrogNaprave.obSpremembiKroga("dostop") { c -> pocistiUmaknjene(c) }
+        // Umik iz kroga zbrise zapis dovoljenj (DostopShramba); TV samo javi spremembo naprej.
+        DostopShramba.poCiscenju = { naSpremembo?.invoke() }
     }
 
-    /**
-     * Zbrise zapis dovoljenj in privolitve naprav, ki so umaknjene iz kroga ([DostopPravila.umaknjenaJedra]): naprava,
-     * ki se v krog vrne, zacne s praznim zapisom. Napaka pri branju kroga = nic ne brisemo (dostop umaknjene naprave
-     * ze prej ne velja, glej [umaknjena]); zapis »zascita« ostane, ker samo omejuje.
-     */
-    fun pocistiUmaknjene(ctx: Context) {
-        val stevilo = synchronized(this) {
-            val m = nalozen(ctx)
-            odstraniUmaknjene(ctx, m, ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE))
-        }
-        if (stevilo == 0) return
-        Log.i(TAG, "Umik iz kroga: zapis dovoljenj zbrisan $stevilo napravam.")
-        try { naSpremembo?.invoke() } catch (_: Throwable) { }
-    }
-
-    /** Iz [m] in iz privolitev odstrani umaknjene naprave in zapise shrani; vrne stevilo. Klicatelj drzi kljucavnico. */
-    private fun odstraniUmaknjene(ctx: Context, m: HashMap<String, Set<Zmoznost>>, prefs: android.content.SharedPreferences): Int {
-        val krog = try { KrogNaprave.krog(ctx) } catch (_: Throwable) { return 0 }
-        val zaslon = privolitve(prefs)
-        val datoteke = privolitve(prefs, KLJUC_PRIVOLITEV_DATOTEK)
-        val ven = DostopPravila.umaknjenaJedra(m.keys + zaslon + datoteke) { j -> try { krog.jeUmaknjen(j) } catch (_: Throwable) { false } }
-        if (ven.isEmpty()) return 0
-        for (j in ven) m.remove(j)
-        prefs.edit().putString(KLJUC_NAPRAVE, vJson(m))
-            .putString(KLJUC_PRIVOLITEV_ZASLONA, JSONArray((zaslon - ven).sorted()).toString())
-            .putString(KLJUC_PRIVOLITEV_DATOTEK, JSONArray((datoteke - ven).sorted()).toString()).apply()
-        return ven.size
-    }
-
-    @Synchronized
-    private fun nalozen(ctx: Context): HashMap<String, Set<Zmoznost>> {
-        zapis?.let { return it }
-        val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val m = HashMap<String, Set<Zmoznost>>()
-        try {
-            val o = JSONObject(prefs.getString(KLJUC_NAPRAVE, "{}") ?: "{}")
-            for (k in o.keys()) m[k] = DostopPravila.izNiza(o.optString(k))
-        } catch (_: Throwable) { }
+    /** Zapis »zascita« (jedra naprav, ki so dokazale kljuc) se prebere enkrat; klicatelj drzi kljucavnico. */
+    private fun zascitaNalozena(ctx: Context) {
+        if (zascitaBrana) return
+        val prefs = ctx.applicationContext.getSharedPreferences(DostopShramba.PREFS, Context.MODE_PRIVATE)
         val z = HashSet<String>()
         try {
             val a = JSONArray(prefs.getString(KLJUC_ZASCITA, "[]") ?: "[]")
             for (i in 0 until a.length()) (a.opt(i) as? String)?.takeIf { DostopPravila.jeJedro(it) }?.let { z.add(it) }
         } catch (_: Throwable) { }
         zascita = z
-        if (!prefs.contains(KLJUC_PODEDOVANO)) {
-            // Prvi zagon z dovoljenji: dosedanje naprave obdrzijo, kar so imele (vse); pozneje dodane zacnejo brez dostopa.
-            val krog = KrogNaprave.krog(ctx)
-            val podedovani = try {
-                DostopPravila.podedovani(krog.clani().map { DostopPravila.Clan(it.id, it.kljuc, it.dodano) }, krog.lastniKljuc,
-                    KrogZaupanja::idIzKljuca)
-            } catch (_: Throwable) { emptySet() }
-            for (j in podedovani) if (j !in m) m[j] = DostopPravila.VSE_ZMOZNOSTI
-            prefs.edit().putString(KLJUC_NAPRAVE, vJson(m)).putLong(KLJUC_PODEDOVANO, System.currentTimeMillis()).apply()
-            Log.i(TAG, "Dovoljenja uvedena: dostop obdrzi ${podedovani.size} dosedanjih naprav; nove zacnejo brez dostopa.")
-        }
-        // Naprava, umaknjena, ko ta program ni tekel (ali pred to razlicico): zapis ne caka na njeno vrnitev.
-        odstraniUmaknjene(ctx, m, prefs)
-        zapis = m
-        return m
+        zascitaBrana = true
     }
 
-    private fun vJson(m: Map<String, Set<Zmoznost>>): String =
-        JSONObject().apply { for ((k, v) in m) put(k, DostopPravila.vNiz(v)) }.toString()
+    fun pocistiUmaknjene(ctx: Context) = DostopShramba.pocistiUmaknjene(ctx)
 
-    /**
-     * Stalna oznaka naprave za zapis dovoljenj (id iz kljuca brez pripone sorodnika). Prazna, ce je pod to oznako v krogu
-     * vpisan drug kljuc, kot ga oznaka izkazuje ([DostopPravila.jedro]) - taka oznaka nima nicesar.
-     */
-    fun jedro(ctx: Context, id: String): String =
-        DostopPravila.jedro(id, { i -> try { KrogNaprave.krog(ctx).clanZaId(i)?.kljuc } catch (_: Throwable) { null } }, KrogZaupanja::idIzKljuca)
-
-    /** Jedro TE naprave (iz njenega kljuca) ali null, ce kljuca ni. */
-    private fun lastnoJedro(ctx: Context): String? =
-        try { KrogNaprave.krog(ctx).lastniKljuc?.let { KrogZaupanja.idIzKljuca(it) } } catch (_: Throwable) { null }
+    fun jedro(ctx: Context, id: String): String = DostopShramba.jedro(ctx, id)
 
     /** Ali je [id] ta naprava sama (isti kljuc; npr. sprejemnik in Safeer OS iste aplikacije). */
-    fun jeTaNaprava(ctx: Context, id: String): Boolean {
-        if (id.isBlank()) return false
-        val nas = lastnoJedro(ctx) ?: return false
-        return jedro(ctx, id) == nas
-    }
+    fun jeTaNaprava(ctx: Context, id: String): Boolean = DostopShramba.jeTaNaprava(ctx, id)
 
     /** Kaj je napravi [id] na tej napravi odprto. */
-    fun zmoznosti(ctx: Context, id: String): Set<Zmoznost> {
-        if (id.isBlank()) return emptySet()
-        return zmoznostiJedra(ctx, jedro(ctx, id))
-    }
+    fun zmoznosti(ctx: Context, id: String): Set<Zmoznost> = DostopShramba.zmoznosti(ctx, id)
 
     /** Kaj je odprto napravi s tem jedrom (pri zascitenem sporocilu pride jedro iz PREVERJENEGA kljuca). */
-    fun zmoznostiJedra(ctx: Context, jedro: String): Set<Zmoznost> {
-        if (jedro.isBlank()) return emptySet()
-        if (jedro == lastnoJedro(ctx)) return DostopPravila.VSE_ZMOZNOSTI
-        val dano = synchronized(this) { nalozen(ctx)[jedro] } ?: emptySet()
-        val veljavno = DostopPravila.veljavne(dano, umaknjena(ctx, jedro))
-        if (veljavno.containsAll(DostopPravila.VSE_ZMOZNOSTI)) return veljavno
-        return if (poroceno(ctx, jedro)) DostopPravila.VSE_ZMOZNOSTI else veljavno
-    }
-
-    /**
-     * Naprava, ki jo je v krog vpisala (podpisan vnos) naprava s polnim dostopom na TEJ napravi, ima polni dostop tudi sama
-     * (lastnik 21. 11. 2026: dodam jo na eni napravi, ne povezujem je na vsaki posebej). Ena stopnja; glej DostopPravila.poroceno.
-     */
-    private fun poroceno(ctx: Context, jedro: String): Boolean = try {
-        val krog = KrogNaprave.krog(ctx)
-        val vnos = krog.vnosZPodpisom(jedro) ?: krog.clani().firstOrNull { KrogZaupanja.idIzKljuca(it.kljuc) == jedro }?.let { krog.vnosZPodpisom(it.id) }
-        if (vnos == null) false else {
-            val porok = jedro(ctx, vnos.first)
-            val polna = synchronized(this) { nalozen(ctx).filterValues { it.containsAll(DostopPravila.VSE_ZMOZNOSTI) }.keys }
-            DostopPravila.poroceno(jedro, porok.ifBlank { null }, vnos.second, umaknjena(ctx, jedro), polna)
-        }
-    } catch (_: Throwable) { false }
+    fun zmoznostiJedra(ctx: Context, jedro: String): Set<Zmoznost> = DostopShramba.zmoznostiJedra(ctx, jedro)
 
     /**
      * Ali je naprava s tem jedrom kljuc ze dokazala (vzpostavila zascito) - ali pa je to ta naprava sama: njeni programi
@@ -159,8 +65,8 @@ object Dostop {
      */
     fun znaZascito(ctx: Context, jedro: String): Boolean {
         if (jedro.isBlank()) return false
-        if (jedro == lastnoJedro(ctx)) return true
-        return synchronized(this) { nalozen(ctx); jedro in zascita }
+        if (jedro == DostopShramba.lastnoJedro(ctx)) return true
+        return synchronized(this) { zascitaNalozena(ctx); jedro in zascita }
     }
 
     /**
@@ -173,11 +79,11 @@ object Dostop {
 
     /** Z napravo je vzpostavljena preverjena seja: odslej od nje (in v njenem imenu) ne sprejmemo nezascitenega. */
     fun zabeleziZascito(ctx: Context, jedro: String) {
-        if (!DostopPravila.jeJedro(jedro) || jedro == lastnoJedro(ctx)) return
+        if (!DostopPravila.jeJedro(jedro) || jedro == DostopShramba.lastnoJedro(ctx)) return
         synchronized(this) {
-            nalozen(ctx)
+            zascitaNalozena(ctx)
             if (!zascita.add(jedro)) return
-            ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            ctx.applicationContext.getSharedPreferences(DostopShramba.PREFS, Context.MODE_PRIVATE).edit()
                 .putString(KLJUC_ZASCITA, JSONArray(zascita.sorted()).toString()).apply()
         }
         Log.i(TAG, "Naprava ${E2e.zakrij(jedro)} je dokazala kljuc: odslej od nje samo zasciteni ukazi.")
@@ -224,7 +130,7 @@ object Dostop {
     fun clanKroga(ctx: Context, jedro: String): Boolean {
         val krog = try { KrogNaprave.krog(ctx) } catch (_: Throwable) { return false }
         val jedra = try { jedraKroga(ctx) } catch (_: Throwable) { return false }
-        return DostopPravila.clanKroga(jedro, { it == lastnoJedro(ctx) }, { it in jedra }, { krog.jeUmaknjen(it) })
+        return DostopPravila.clanKroga(jedro, { it == DostopShramba.lastnoJedro(ctx) }, { it in jedra }, { krog.jeUmaknjen(it) })
     }
 
     /**
@@ -253,26 +159,10 @@ object Dostop {
 
     /**
      * Uporabnik je napravi [id] dolocil dostop (privolitev v Nastavitvah ali Linku); prazen nabor = brez dostopa (naprava
-     * samo pomaga pri povezavi). Ozji krog ([DostopPravila.ozjiKrog], lastnik 25. 10. 2026 10:49): vsak neprazen nabor
-     * vkljucuje datoteke in zaslon z upravljanjem; zaslon, shranjen tu, je privolitev za Safeer Vnos.
+     * samo pomaga pri povezavi). Zapis in pravila so v [DostopShramba]; tu ostane samo, kar je vezano na zaslon TV.
      */
     fun nastavi(ctx: Context, id: String, dano: Set<Zmoznost>) {
-        if (id.isBlank() || jeTaNaprava(ctx, id)) return
-        val j = jedro(ctx, id)
-        // Oznaka, pod katero je v krogu drug kljuc, kot ga izkazuje: ni naprava, ki ji je mogoce kaj odpreti.
-        if (j.isBlank()) return
-        val novo = DostopPravila.ozjiKrog(dano)
-        synchronized(this) {
-            val m = nalozen(ctx)
-            m[j] = novo
-            val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val zaslon = DostopPravila.privolitvePo(privolitve(prefs), j, novo)
-            val datoteke = DostopPravila.privolitvePo(privolitve(prefs, KLJUC_PRIVOLITEV_DATOTEK), j, novo, Zmoznost.DATOTEKE)
-            prefs.edit().putString(KLJUC_NAPRAVE, vJson(m))
-                .putString(KLJUC_PRIVOLITEV_ZASLONA, JSONArray(zaslon.sorted()).toString())
-                .putString(KLJUC_PRIVOLITEV_DATOTEK, JSONArray(datoteke.sorted()).toString()).apply()
-        }
-        Log.i(TAG, "Dostop naprave $j: ${DostopPravila.vNiz(novo).ifEmpty { "brez" }}")
+        val (j, novo) = DostopShramba.nastavi(ctx, id, dano) ?: return
         // Pregled dex-a U7: brez zaslona (umik iz ozjega kroga) zaupanje za deljenje zaslona ne ostane.
         if (Zmoznost.ZASLON !in novo) {
             try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(ctx) } catch (_: Throwable) { }
@@ -282,57 +172,18 @@ object Dostop {
         try { naSpremembo?.invoke() } catch (_: Throwable) { }
     }
 
-    private fun privolitve(prefs: android.content.SharedPreferences, kljuc: String = KLJUC_PRIVOLITEV_ZASLONA): Set<String> = try {
-        val a = JSONArray(prefs.getString(kljuc, "[]") ?: "[]")
-        (0 until a.length()).mapNotNull { (a.opt(it) as? String)?.takeIf { s -> DostopPravila.jeJedro(s) } }.toSet()
-    } catch (_: Throwable) { emptySet() }
-
     /** Ali je uporabnik napravi [id] datoteke odprl s privolitvijo po uvedbi `fs:` in naprava ni umaknjena. Napaka = ne. */
-    fun privolitevVsehDatotek(ctx: Context, id: String): Boolean = try {
-        val j = jedro(ctx, id)
-        j.isNotBlank() && j in synchronized(this) {
-            privolitve(ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE), KLJUC_PRIVOLITEV_DATOTEK)
-        } && !umaknjena(ctx, j)
-    } catch (_: Throwable) { false }
+    fun privolitevVsehDatotek(ctx: Context, id: String): Boolean = DostopShramba.privolitevVsehDatotek(ctx, id)
 
     /** Uporabnik se je dotaknil obvestila »naprava [id] prosi za vse datoteke« (link/DostopDatotekActivity). */
-    fun zabeleziPrivolitevVsehDatotek(ctx: Context, id: String) {
-        if (id.isBlank() || jeTaNaprava(ctx, id)) return
-        val j = jedro(ctx, id)
-        if (j.isBlank()) return
-        synchronized(this) {
-            val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val nove = privolitve(prefs, KLJUC_PRIVOLITEV_DATOTEK) + j
-            prefs.edit().putString(KLJUC_PRIVOLITEV_DATOTEK, JSONArray(nove.sorted()).toString()).apply()
-        }
-        Log.i(TAG, "Vse datoteke: privolitev za napravo $j")
-    }
+    fun zabeleziPrivolitevVsehDatotek(ctx: Context, id: String) = DostopShramba.zabeleziPrivolitevVsehDatotek(ctx, id)
 
-    /**
-     * Jedra naprav, ki jim je zaslon odprt s privolitvijo uporabnika in niso umaknjene - samo te sprozijo samodejni vklop
-     * Safeer Vnosa (pregled tv-vnos, tocka 5; podedovane naprave ne).
-     */
-    fun napraveSPrivolitvijoZaslona(ctx: Context): Set<String> {
-        val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return synchronized(this) { DostopPravila.zaslonSPrivolitvijo(nalozen(ctx), privolitve(prefs, KLJUC_PRIVOLITEV_ZASLONA)) }
-            .filterNot { umaknjena(ctx, it) }.toSet()
-    }
-
-    /**
-     * Umik iz kroga takoj preklice dostop (lastnik 25. 10. 2026; pravilo AGENTS.md »umik naprave iz kroga takoj
-     * preklice njene zetone in seje«): zapis dovoljenj ne velja in se zbrise ([pocistiUmaknjene], pregled 10. 11. 2026) -
-     * ponovno dodana naprava zacne brez dostopa. Napaka pri branju kroga = umaknjena (»ne vem« ni »da«).
-     */
-    private fun umaknjena(ctx: Context, jedro: String): Boolean =
-        try { KrogNaprave.krog(ctx).jeUmaknjen(jedro) } catch (_: Throwable) { true }
+    /** Jedra naprav z zaslonom, odprtim s privolitvijo uporabnika (ne umaknjena); sprozijo samodejni vklop Safeer Vnosa. */
+    fun napraveSPrivolitvijoZaslona(ctx: Context): Set<String> = DostopShramba.napraveSPrivolitvijoZaslona(ctx)
 
     /** Jedra naprav, ki na tej napravi izpolnjujejo [zahteva] (VSE = ozji krog: komu sme iti usklajevanje). */
-    fun napraveZ(ctx: Context, zahteva: Zahteva): Set<String> =
-        synchronized(this) { nalozen(ctx).filterValues { DostopPravila.sme(it, zahteva) }.keys.toSet() }
-            .filterNot { umaknjena(ctx, it) }.toSet()
+    fun napraveZ(ctx: Context, zahteva: Zahteva): Set<String> = DostopShramba.napraveZ(ctx, zahteva)
 
     /** Jedra naprav, ki jim je na tej napravi odprta [zmoznost] (npr. komu sme iti stanje predvajanja). */
-    fun napraveZ(ctx: Context, zmoznost: Zmoznost): Set<String> =
-        synchronized(this) { nalozen(ctx).filterValues { zmoznost in it }.keys.toSet() }
-            .filterNot { umaknjena(ctx, it) }.toSet()
+    fun napraveZ(ctx: Context, zmoznost: Zmoznost): Set<String> = DostopShramba.napraveZ(ctx, zmoznost)
 }

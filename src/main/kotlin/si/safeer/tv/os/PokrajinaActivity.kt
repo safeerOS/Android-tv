@@ -1651,7 +1651,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             val (tip, id, serija) = videoEnote[ime] ?: return@mapNotNull null
             if (KakovostZnane.oznaka(this, id) != null || !kakovostLupeZahtevana.add(id)) return@mapNotNull null
             Triple(tip, id, serija)
-        }.take(NAJVEC_VIDEO)
+        }.take(NAJVEC_VIDEO).filter { KakovostZnane.smemPoizvedovati(this, it.second) }
         if (naVrsti.isEmpty()) return
         try {
             videoDelavec.execute {

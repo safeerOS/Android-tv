@@ -169,7 +169,7 @@ private fun krogSamoOdSredisca(izvorna: String) {
     fun vir(pot: String) = java.io.File(izvorna, pot).readText()
     preveri("KrogNaprave.sprejmi varuje umike", vir("si/safeer/tv/cast/KrogNaprave.kt").contains("zdruzi(json, varujUmike = true)"))
     preveri("Dostop ob spremembi kroga zbrise zapis umaknjenih",
-        vir("si/safeer/tv/cast/Dostop.kt").contains("KrogNaprave.obSpremembiKroga(\"dostop\") { c -> pocistiUmaknjene(c) }"))
+        vir("si/safeer/tv/cast/DostopShramba.kt").contains("KrogNaprave.obSpremembiKroga(\"dostop\") { c -> pocistiUmaknjene(c) }"))
     for (pot in listOf("si/safeer/tv/cast/CastReceiverService.kt", "si/safeer/tv/os/LinkOdjemalec.kt"))
         preveri("$pot: trust.update samo od sredisca", vir(pot).substringAfter("\"trust.update\"").substringBefore("KrogNaprave.sprejmi").contains("krogOdSredisca("))
 }

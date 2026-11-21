@@ -9093,7 +9093,7 @@ class GlasbaActivity : OsActivity() {
             if (tip != "movie" && tip != "series") return@mapNotNull null
             if (KakovostZnane.oznaka(this, id) != null || !kakovostZadetkovZahtevana.add(id)) return@mapNotNull null
             Triple(tip, id, Stremio.jeSerija(sk))
-        }.take(8)
+        }.take(5).filter { KakovostZnane.smemPoizvedovati(this, it.second) }
         if (naVrsti.isEmpty()) return
         try {
             iskanjeDelavec.execute {

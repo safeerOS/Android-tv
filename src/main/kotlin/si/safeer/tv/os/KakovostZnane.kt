@@ -53,4 +53,22 @@ object KakovostZnane {
         c.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE).edit().putString(KLJUC, posnetek).apply()
         return sprememba
     }
+
+    private const val DATOTEKA_SPRASANO = "kakovost_sprasano"
+    private const val SPRASANO_VELJA_MS = 12L * 60 * 60 * 1000
+
+    /**
+     * Omejitev poizvedb indeksatorjev (kvota): enote, za katero kakovost ni znana, ne sprasujemo znova 12 ur, tudi ce so tokovi
+     * prazni. Vrne true (in si zapomni cas), ce smemo poizvedovati zdaj.
+     */
+    fun smemPoizvedovati(c: Context, id: String, zdaj: Long = System.currentTimeMillis()): Boolean {
+        val k = KakovostPravila.kljuc(id) ?: return false
+        val sp = c.getSharedPreferences(DATOTEKA_SPRASANO, Context.MODE_PRIVATE)
+        synchronized(znane) {
+            val prej = sp.getLong(k, 0L)
+            if (prej != 0L && zdaj - prej in 0 until SPRASANO_VELJA_MS) return false
+            sp.edit().putLong(k, zdaj).apply()
+            return true
+        }
+    }
 }

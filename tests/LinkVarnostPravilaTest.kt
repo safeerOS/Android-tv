@@ -97,11 +97,12 @@ private fun dnevnikCast(izvorna: String) {
     if (izvorna.isEmpty()) return
     val slab = Regex("""\$\{?(posiljatelj|od|ime|pot|cilj|sender)\b|\.parent\b|\bit\.id\b""")
     val klic = Regex("""(oznakaZaDnevnik|OznakaDnevnik\.oznaka)\([^)]*\)""")
-    for (ime in listOf("Dostop.kt", "CastReceiverService.kt", "HubKrmilnik.kt", "HubUsmerjevalnik.kt")) {
+    for (ime in listOf("Dostop.kt", "DostopShramba.kt", "CastReceiverService.kt", "HubKrmilnik.kt", "HubUsmerjevalnik.kt")) {
         val slabe = vir(izvorna, "si/safeer/tv/cast/$ime").lines()
             .filter { Regex("""\bLog\.[a-z]\(""").containsMatchIn(it) && slab.containsMatchIn(klic.replace(it, "X")) }
         preveri("$ime: dnevnik brez polnih oznak, imen datotek in map (${slabe.size}: ${slabe.map { it.trim().take(60) }})", slabe.isEmpty())
     }
+    preveri("DostopShramba (Link Core za telefon) ne pozna link/ ne E2e", vir(izvorna, "si/safeer/tv/cast/DostopShramba.kt").let { !it.contains("si.safeer.tv.link") && !it.contains("E2e") })
     preveri("HubUsmerjevalnik (Link Core za telefon) ne pozna link/", !vir(izvorna, "si/safeer/tv/cast/HubUsmerjevalnik.kt").contains("si.safeer.tv.link"))
     val prevzem = vir(izvorna, "si/safeer/tv/cast/CastReceiverService.kt")
     preveri("prevzem datoteke v dnevniku brez besedila izjeme", !prevzem.contains("ni bilo mogoce prevzeti: \${e.message}"))
