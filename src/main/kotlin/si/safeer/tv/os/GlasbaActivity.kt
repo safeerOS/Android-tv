@@ -8921,10 +8921,6 @@ class GlasbaActivity : OsActivity() {
         }, "safeer-usenet-priljubljen").start()
     }
 
-    /**
-     * [drugi]: zadetki istega iskanja. Lastnik 28. 10. 2026 (kvota): pri »luknja« najvec NAJVEC_DRUGIH_IZDAJ drugi izdaji
-     * istega albuma ([poskus] steje), druge napake brez ponovitve.
-     */
     /** Album YouTube Music po vrsti (lastnik 21. 11. 2026): skladbe gredo v isto vrsto kot uvozeni seznami YouTube. */
     private fun predvajajYtAlbum(e: YoutubeGlasba.Element) {
         Toast.makeText(this, getString(R.string.yt_glasba_album_pripravljam, e.naslov), Toast.LENGTH_SHORT).show()
@@ -8942,6 +8938,10 @@ class GlasbaActivity : OsActivity() {
         }, "safeer-ytm-album").start()
     }
 
+    /**
+     * [drugi]: zadetki istega iskanja. Lastnik 28. 10. 2026 (kvota): pri »luknja« najvec NAJVEC_DRUGIH_IZDAJ drugi izdaji
+     * istega albuma ([poskus] steje), druge napake brez ponovitve.
+     */
     private fun predvajajUsenetAlbum(z: UsenetPravila.Zadetek, beseda: String, drugi: List<UsenetPravila.Zadetek> = emptyList(),
                                      poskus: Int = 0, prvi: String = z.naslov) {
         val app = applicationContext
