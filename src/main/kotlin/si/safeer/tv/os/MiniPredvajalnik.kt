@@ -285,7 +285,7 @@ class MiniPredvajalnik(
             }
         }
         // Zatemnitev ima smisel samo za zvok na tej napravi (video bi zakrila, druga naprava ima svoj zaslon).
-        gumbZatemni?.visibility = if (MiniPredvajalnikPravila.gumbZatemni(tu != null, tu?.video == true, odd)) View.VISIBLE else View.GONE
+        gumbZatemni?.visibility = if (MiniPredvajalnikPravila.gumbZatemni(tu != null, tu?.video == true, odd, tu?.let { YoutubeZvok.jeYoutube(it) } == true)) View.VISIBLE else View.GONE
         glavna.removeCallbacks(casovnik)
         if (drsnik?.visibility == View.VISIBLE && odprt && koren?.visibility == View.VISIBLE) glavna.postDelayed(casovnik, 1_000L)
     }

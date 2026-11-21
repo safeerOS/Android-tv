@@ -811,7 +811,7 @@ class PredvajanjeActivity : OsActivity() {
         // zatemnitev takoj izginila (preizkus 1. 10. 2026: "Zatemni zaslon" na telefonu ni deloval).
         // Namerna zatemnitev velja tudi, ce je zaslon prej izgubil fokus okna (medijski center nad njim): vrnitev fokusa
         // je ne sme razveljaviti ([onWindowFocusChanged]).
-        glavna.post { if (!isFinishing && !jeVideo()) { glavna.removeCallbacks(zatemni); zatemnitevCaka = false; tema.visibility = View.VISIBLE; osveziCas() } }
+        glavna.post { if (!isFinishing && (!jeVideo() || igraVOzadju())) { glavna.removeCallbacks(zatemni); zatemnitevCaka = false; tema.visibility = View.VISIBLE; osveziCas() } }
     }
 
     /**

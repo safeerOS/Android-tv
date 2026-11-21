@@ -6192,7 +6192,7 @@ class GlasbaActivity : OsActivity() {
             return t
         }
         fun predvajanje(extra: String?) = startActivity(Intent(this, PredvajanjeActivity::class.java).apply { if (extra != null) putExtra(extra, true) })
-        if (!sk.video) dejanje("k:zatemni", R.drawable.os_ikona_luna, getString(R.string.os_media_zatemni)) { predvajanje(PredvajanjeActivity.ZATEMNI) }
+        if (!sk.video || YoutubeZvok.jeYoutube(sk)) dejanje("k:zatemni", R.drawable.os_ikona_luna, getString(R.string.os_media_zatemni)) { predvajanje(PredvajanjeActivity.ZATEMNI) }
         // Hitrosti zvocnik v omrezju ne zna spremeniti.
         if (!sk.radio && !GlasbaStoritev.naZvocniku()) hHitrost = dejanje("k:hitrost", R.drawable.os_ikona_hitrost, "") {
             GlasbaStoritev.predvajalnik?.let { p ->

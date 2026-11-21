@@ -146,6 +146,8 @@ fun main() {
     // Lastnik 28. 10. 2026: gumb »Zatemni zaslon« samo za zvok na tej napravi
     check(MiniPredvajalnikPravila.gumbZatemni(true, false, false))
     check(!MiniPredvajalnikPravila.gumbZatemni(true, true, false)) { "video" }
+    check(MiniPredvajalnikPravila.gumbZatemni(true, true, false, true)) { "YouTube posnetek (glasba): zatemnitev dovoljena" }
+    check(!MiniPredvajalnikPravila.gumbZatemni(true, true, true, true)) { "YouTube na drugi napravi: ne" }
     check(!MiniPredvajalnikPravila.gumbZatemni(true, false, true)) { "druga naprava" }
     check(!MiniPredvajalnikPravila.gumbZatemni(false, false, false)) { "nic ne igra" }
 
