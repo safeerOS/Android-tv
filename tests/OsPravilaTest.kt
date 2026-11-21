@@ -1370,6 +1370,14 @@ private fun preizkusSlikSpletnihZadetkov() {
     preveriEnako("temno: OK samo zbudi", OsPravila.TEMNO_ZBUDI, OsPravila.tipkaNaTemnem(false, false, true, false))
     preveriEnako("temno: spust tipke, ki je zbudila, pogoltnjen", OsPravila.TEMNO_POGOLTNI, OsPravila.tipkaNaTemnem(true, false, false, true))
     preveriEnako("temno: glasnost deluje", OsPravila.TEMNO_NAPREJ, OsPravila.tipkaNaTemnem(false, true, true, false))
+    // Dolg pritisk na lunico (21. 11. 2026): zadrzan OK in njegov spust ne zbudita zaslona, nov pritisk ga.
+    preveri("polna tema: ponovitev zadrzanega OK se pogoltne", OsPravila.polnaPogoltni(1000L, 1500L, jeOk = true, spust = false, ponovitev = true))
+    preveri("polna tema: spust OK se pogoltne", OsPravila.polnaPogoltni(1000L, 1200L, jeOk = true, spust = true, ponovitev = false))
+    preveri("polna tema: nov pritisk OK zbudi", !OsPravila.polnaPogoltni(1000L, 9000L, jeOk = true, spust = false, ponovitev = false))
+    preveri("polna tema: druga tipka zbudi", !OsPravila.polnaPogoltni(1000L, 1500L, jeOk = false, spust = false, ponovitev = true))
+    preveri("polna tema: brez dolgega pritiska ni pogoltnitve", !OsPravila.polnaPogoltni(0L, 1500L, jeOk = true, spust = true, ponovitev = true))
+    preveri("polna tema: po 10 s ponovitve ne pogoltnemo (zaslon ne ostane nem)", !OsPravila.polnaPogoltni(1000L, 20_000L, jeOk = true, spust = false, ponovitev = true))
+
     preveriEnako("budno: tipke kot doslej", OsPravila.TEMNO_NAPREJ, OsPravila.tipkaNaTemnem(true, false, true, false))
     preveriEnako("budno: spust druge tipke naprej", OsPravila.TEMNO_NAPREJ, OsPravila.tipkaNaTemnem(true, false, false, false))
     preveriEnako("nadaljevanje: pod 10 s ne", false, OsPravila.ponudiNadaljevanje(9_000, 0))

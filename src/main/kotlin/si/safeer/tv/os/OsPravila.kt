@@ -643,6 +643,21 @@ object OsPravila {
      * Tipka na zaslonu predvajanja (lastnik 28. 10. 2026): zatemnjen zaslon zbudi katerakoli tipka in nic drugega ne naredi
      * ([TEMNO_ZBUDI]); spust tipke, ki je zbudila, se pogoltne ([TEMNO_POGOLTNI]); glasnost vedno deluje ([TEMNO_NAPREJ]).
      */
+    /** Najdlje, kar zadrzan OK po dolgem pritisku na lunico se pogoltne (zaslon ne sme ostati nem, ce spust tipke zmanjka). */
+    const val POLNA_POGOLTNI_MS = 10_000L
+
+    /**
+     * Dolg pritisk na lunico (lastnik 21. 11. 2026): tipka je se zadrzana, ko se odpre zaslon predvajanja, in njene ponovitve
+     * (zadrzan OK) ter spust bi zaslon takoj zbudili - videti je bilo, da gre »naprej na predvajalnik«. Zato se v oknu
+     * [POLNA_POGOLTNI_MS] od zatemnitve pogoltnejo ponovitve in spust OK/Enter; NOV pritisk (prvi dogodek navzdol) zbudi kot prej.
+     * [polnaOd] = cas zatemnitve (0 = ni dolgega pritiska), [zdaj] ista ura.
+     */
+    fun polnaPogoltni(polnaOd: Long, zdaj: Long, jeOk: Boolean, spust: Boolean, ponovitev: Boolean): Boolean {
+        if (polnaOd <= 0L || !jeOk) return false
+        if (spust) return true
+        return ponovitev && zdaj - polnaOd in 0..POLNA_POGOLTNI_MS
+    }
+
     fun tipkaNaTemnem(budna: Boolean, glasnost: Boolean, pritisk: Boolean, zbudilaTaTipka: Boolean): Int = when {
         glasnost -> TEMNO_NAPREJ
         !budna && pritisk -> TEMNO_ZBUDI

@@ -104,7 +104,7 @@ object Relevantnost {
         // naslov natancno enak poizvedbi. Zadetki, ki imajo vse besede poizvedbe v naslovu ([STOPNJA_VSE]), so ena stopnja;
         // znotraj nje odloca priljubljenost (glasovi, nato ocena vira), sele nato ocena ujemanja in prednost vira.
         return najboljsi.values.sortedWith(
-            compareByDescending<Pair<Zadetek<*>, Double>> { minOf(it.second, STOPNJA_VSE) }
+            compareByDescending<Pair<Zadetek<*>, Double>> { stopnja(it.second) }
                 .thenByDescending { it.first.glasov }
                 .thenByDescending { it.first.ocenaVira }
                 .thenBy { it.first.rangVira }
@@ -112,6 +112,16 @@ object Relevantnost {
                 .thenBy { it.first.prednost }
         )
     }
+
+    /** Od te ocene naprej so vse besede poizvedbe v naslovu (tudi kot zacetek besede: »termin« -> »Terminator«). */
+    const val VSE_BESEDE = 1.0
+
+    /**
+     * Stopnja zadetka za razvrscanje. Lastnik 21. 11. 2026: pri »termin« so tocni naslovi »Termin« (glasba, posnetki, 0 glasov) stali pred
+     * filmi Terminator, ker tocno ujemanje dobi bonus; zadetki z vsemi besedami poizvedbe (tudi zacetek besede) so ena stopnja
+     * in med njimi odloca priljubljenost (glasovi, ocena, mesto v odgovoru), ne to, ali je naslov natancno enak.
+     */
+    fun stopnja(ocena: Double): Double = if (ocena >= VSE_BESEDE) STOPNJA_VSE else ocena
 
     /** Ali lastni viri nimajo dovolj dobrih zadetkov - takrat (in samo takrat) ponudimo splet. */
     fun potrebujemSplet(razvrsceni: List<Pair<Zadetek<*>, Double>>): Boolean =

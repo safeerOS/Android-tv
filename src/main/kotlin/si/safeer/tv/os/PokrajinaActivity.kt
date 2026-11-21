@@ -1183,7 +1183,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     /** Kartice filmov in serij: naslovnica 2:3 in naslov v eni vrstici; vrsta drsi z fokusom. */
     private fun vrstaKartic(naslovi: List<Pair<String, String>>): View = vrstaKarticSSlikami(
-        naslovi.map { (n, slika) -> Triple("video_$n", n, slika) }, dp(64), dp(96)) { n, _ ->
+        naslovi.map { (n, slika) -> Triple("video_$n", n, slika) }, dp(64), dp(96), znacka = { n -> znackaKakovostiLupe(n) }) { n, _ ->
         // Isto kot »Prikazi na TV«: film ali serija s tem naslovom se v Medijskem centru odpre sama.
         startActivity(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, n)
             .putExtra(GlasbaActivity.ISKANJE_NATANCNO, true))
@@ -1197,7 +1197,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
     /** Vodoravna vrsta kartic s sliko in naslovom v eni vrstici; vrsta drsi s fokusom. [kartice] = (oznaka, naslov, slika). */
-    private fun vrstaKarticSSlikami(kartice: List<Triple<String, String, String>>, sirina: Int, visina: Int, klik: (String, String) -> Unit): View {
+    private fun vrstaKarticSSlikami(kartice: List<Triple<String, String, String>>, sirina: Int, visina: Int,
+                                    znacka: ((String) -> Pair<String, String>?)? = null, klik: (String, String) -> Unit): View {
         val vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(2), dp(4), dp(2), dp(4)) }
         for ((oznaka, n, slika) in kartice) {
             val kartica = LinearLayout(this).apply {
@@ -1216,6 +1217,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             kartica.addView(slikaV, LinearLayout.LayoutParams(sirina, visina))
             kartica.addView(besedilo(n, 12f).apply { maxLines = 1; isSingleLine = true; ellipsize = TextUtils.TruncateAt.END },
                 LinearLayout.LayoutParams(sirina, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2) })
+            znacka?.invoke(n)?.let { (idZnacke, napis) ->
+                kartica.addView(TextView(this).apply {
+                    tag = "kakovost:$idZnacke"; text = napis; textSize = 10f; maxLines = 1; isSingleLine = true
+                    setTextColor(if (napis.startsWith("⚠")) 0xFFFFB74D.toInt() else 0xFF1CE6F2.toInt())
+                    visibility = if (napis.isBlank()) View.GONE else View.VISIBLE
+                }, LinearLayout.LayoutParams(sirina, ViewGroup.LayoutParams.WRAP_CONTENT))
+            }
             vrsta.addView(kartica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
             if (slika.isNotBlank()) slikaLupe(slika, slikaV)
         }
@@ -1623,6 +1631,50 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
     private val videoDelavec by videoDelavecL
 
+    /** Naslov kartice lupe -> (tip, id, serija) za znacko kakovosti. */
+    private val videoEnote = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, Boolean>>()
+    private val kakovostLupeZahtevana = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** Znacka kakovosti za kartico z [naslov]: (id, napis) ali null, ce enota ni film/serija; napis je prazen, dokler kakovost ni znana. */
+    private fun znackaKakovostiLupe(naslov: String): Pair<String, String>? {
+        val (_, id, _) = videoEnote[naslov] ?: return null
+        val o = try { KakovostZnane.oznaka(this, id) } catch (_: Throwable) { null }
+        return id to (o?.let { KakovostPravila.napisKartice(it) } ?: "")
+    }
+
+    /**
+     * Kakovost iz tokov dodatkov za prvih nekaj kartic lupe (isto kot v Medijskem centru, skupna shramba KakovostZnane): ena enota
+     * naenkrat v ozadju, znacka se dopolni na mestu. Ze znanih ne sprasujemo znova. Samo dodatki Stremio (brez Usenet poti).
+     */
+    private fun predpripraviKakovostLupe(naslovi: List<String>, imena: List<String>) {
+        val naVrsti = imena.mapNotNull { ime ->
+            val (tip, id, serija) = videoEnote[ime] ?: return@mapNotNull null
+            if (KakovostZnane.oznaka(this, id) != null || !kakovostLupeZahtevana.add(id)) return@mapNotNull null
+            Triple(tip, id, serija)
+        }.take(NAJVEC_VIDEO)
+        if (naVrsti.isEmpty()) return
+        try {
+            videoDelavec.execute {
+                for ((tip, id, serija) in naVrsti) {
+                    if (isFinishing || isDestroyed) return@execute
+                    try {
+                        val t = Stremio.tokoviZOdzivom(naslovi, tip, if (serija) "$id:1:1" else id).tokovi
+                        val nova = KakovostZnane.zabelezi(applicationContext, id, t.map { it.ime + " " + it.opis }, serija) ?: continue
+                        val napis = KakovostPravila.napisKartice(nova)
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            fun obisci(v: View) {
+                                if (v is TextView && v.tag == "kakovost:$id") { v.text = napis; v.visibility = View.VISIBLE }
+                                if (v is ViewGroup) for (i in 0 until v.childCount) obisci(v.getChildAt(i))
+                            }
+                            obisci(window.decorView)
+                        }
+                    } catch (_: Exception) { }
+                }
+            }
+        } catch (_: Exception) { }
+    }
+
     /** Vrne false, ce uporabnik nima dodatkov (iskanja ni - nic se ne caka). */
     private fun isciVideo(q: String, st: Int, nato: (List<Pair<String, String>>) -> Unit): Boolean {
         val naslovi = try { MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov } } catch (_: Throwable) { emptyList() }
@@ -1630,12 +1682,23 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         videoDelavec.execute {
             // Zastarelo iskanje (uporabnik je medtem tipkal naprej) ne gre v omrezje; novejse ima svoje stanje.
             if (st != iskanjeSt) return@execute
-            val zadetkiVidea = try {
+            val enote = try {
                 Stremio.isci(Stremio.zKatalogom(naslovi), q, samoIskanje = false)
                     .filter { Stremio.razredEnote(it) == Stremio.FILM || Stremio.razredEnote(it) == Stremio.SERIJA }
-                    .filter { it.naslov.isNotBlank() }.distinctBy { it.naslov }.take(NAJVEC_VIDEO).map { it.naslov to it.slika }
+                    .filter { it.naslov.isNotBlank() }.distinctBy { it.naslov }.take(NAJVEC_VIDEO)
             } catch (_: Throwable) { emptyList() }
-            glavna.post { if (!isFinishing && !isDestroyed && st == iskanjeSt) nato(zadetkiVidea) }
+            val zadetkiVidea = enote.map { it.naslov to it.slika }
+            // Lastnik 21. 11. 2026: kakovost (4K, Full HD ...) tudi na karticah lupe; id-ji za znacko in predpripravo v ozadju.
+            for (sk in enote) {
+                val r = Stremio.razstavi(sk) ?: continue
+                if (r.second == "movie" || r.second == "series") videoEnote[sk.naslov] = Triple(r.second, r.third, Stremio.jeSerija(sk))
+            }
+            glavna.post {
+                if (!isFinishing && !isDestroyed && st == iskanjeSt) {
+                    nato(zadetkiVidea)
+                    predpripraviKakovostLupe(naslovi, enote.map { it.naslov })
+                }
+            }
         }
         return true
     }

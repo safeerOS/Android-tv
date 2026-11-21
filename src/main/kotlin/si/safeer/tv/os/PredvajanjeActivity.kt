@@ -131,6 +131,8 @@ class PredvajanjeActivity : OsActivity() {
     private var zatemnitevCaka = false
     /** Tipka, ki je zbudila zatemnjen zaslon: tudi njen spust pogoltnemo (sicer bi Nazaj ob spustu zapustil zaslon). */
     private var zbudilaTipka: Int? = null
+    /** Cas dolgega pritiska na lunico (polna tema); 0 = ni. Glej OsPravila.polnaPogoltni. */
+    private var polnaOd = 0L
 
     /**
      * Pod odprtim pogovornim oknom (»Vec moznosti«, izbira zvocnika, podnapisi) se zaslon ne zatemni: tipke in dotiki gredo
@@ -813,7 +815,7 @@ class PredvajanjeActivity : OsActivity() {
         // zatemnitev takoj izginila (preizkus 1. 10. 2026: "Zatemni zaslon" na telefonu ni deloval).
         // Namerna zatemnitev velja tudi, ce je zaslon prej izgubil fokus okna (medijski center nad njim): vrnitev fokusa
         // je ne sme razveljaviti ([onWindowFocusChanged]).
-        glavna.post { if (!isFinishing && (!jeVideo() || igraVOzadju())) { glavna.removeCallbacks(zatemni); zatemnitevCaka = false; tema.visibility = View.VISIBLE; polnaTema(polno); osveziCas() } }
+        glavna.post { if (!isFinishing && (!jeVideo() || igraVOzadju())) { glavna.removeCallbacks(zatemni); zatemnitevCaka = false; tema.visibility = View.VISIBLE; polnaTema(polno); polnaOd = if (polno) android.os.SystemClock.uptimeMillis() else 0L; osveziCas() } }
     }
 
     /**
@@ -3105,6 +3107,15 @@ class PredvajanjeActivity : OsActivity() {
             if (dogodek.keyCode == KeyEvent.KEYCODE_BACK) { if (dogodek.action == KeyEvent.ACTION_UP) zakleni(false); return true }
             if (dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP || dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) return super.dispatchKeyEvent(dogodek)
             return true
+        }
+        if (polnaOd != 0L) {
+            val ok = dogodek.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || dogodek.keyCode == KeyEvent.KEYCODE_ENTER
+            val spust = dogodek.action == KeyEvent.ACTION_UP
+            if (OsPravila.polnaPogoltni(polnaOd, android.os.SystemClock.uptimeMillis(), ok, spust, dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount > 0)) {
+                if (spust) polnaOd = 0L
+                return true
+            }
+            if (dogodek.action == KeyEvent.ACTION_DOWN) polnaOd = 0L
         }
         val budna = tema.visibility != View.VISIBLE
         zbudi()

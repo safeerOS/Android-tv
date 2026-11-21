@@ -64,6 +64,14 @@ fun main() {
         Relevantnost.Zadetek("2001", "The Lord of the Rings: The Fellowship of the Ring", "", "Cinemeta", 2, rangVira = 0)))
     preveri("Cinemeta brez ocen: mesto v odgovoru vira", poRangu[0].first.stvar == "2001")
 
+    // Lastnik 21. 11. 2026 (TV): iskanje "termin" je kazalo glasbo "Termin" (0 glasov) pred filmi Terminator.
+    // Besedo poizvedbe v naslovu (tudi kot zacetek) ima vec zadetkov: odloca priljubljenost.
+    val termin = R.razvrsti("termin", listOf(
+        Relevantnost.Zadetek("glasba", "Termin", "", "x", 2, glasov = 0),
+        Relevantnost.Zadetek("film", "Terminator", "", "Cinemeta", 2, glasov = 900_000, ocenaVira = 8.1)))
+    preveri("termin: film z glasovi pred glasbo brez glasov", termin[0].first.stvar == "film")
+    preveri("stopnja: vse besede so ista stopnja", R.stopnja(1.5) == R.stopnja(1.2) && R.stopnja(0.5) == 0.5)
+
     println("Relevantnost: $uspehov passed, $napak failed")
     if (napak > 0) kotlin.system.exitProcess(1)
 }
