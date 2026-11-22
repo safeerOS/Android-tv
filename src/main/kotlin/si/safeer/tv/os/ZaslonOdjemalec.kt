@@ -289,12 +289,15 @@ class ZaslonOdjemalec(
 
     /**
      * Zvok je surov PCM, zato ga ni treba dekodirati - gre naravnost v AudioTrack. Medpomnilnik je
-     * majhen (okrog 100 ms), ker je cilj, da zvok ne zaostaja za sliko.
+     * majhen (okrog 60 ms), ker je cilj, da zvok ne zaostaja za sliko.
      */
     private fun pripraviZvok(hz: Int, kanali: Int): AudioTrack? = try {
         val razpored = if (kanali >= 2) AudioFormat.CHANNEL_OUT_STEREO else AudioFormat.CHANNEL_OUT_MONO
         val najmanj = AudioTrack.getMinBufferSize(hz, razpored, AudioFormat.ENCODING_PCM_16BIT)
-        val velikost = maxOf(najmanj, hz * kanali * 2 / 10)          // ~100 ms
+        // Velikost po pravilih ZaslonZvok (ciljno ~60 ms, poravnano na cel vzorec, nikoli pod sistemskim najmanjsim).
+        // Veckanalni zvok (5.1) se vkljuci sele, ko ga racunalnik poslje in je preizkusen na TV: zdaj samo mono/stereo.
+        val velikost = ZaslonZvok.medpomnilnikBajtov(hz, minOf(kanali, 2), false,
+            ZaslonZvok.CILJNI_MEDPOMNILNIK_MS, maxOf(najmanj, 0))
         AudioTrack.Builder()
             .setAudioAttributes(AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
