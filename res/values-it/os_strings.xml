@@ -404,6 +404,8 @@
     <string name="os_zaslon_meni_zapolni">Riempi lo schermo</string>
     <string name="os_zaslon_meni_cela_slika">Immagine intera</string>
     <string name="os_zaslon_meni_vecja_vsebina">Contenuto più grande</string>
+    <string name="os_zaslon_meni_rob_vecji">Margine immagine maggiore</string>
+    <string name="os_zaslon_meni_rob_manjsi">Margine immagine minore</string>
     <string name="os_zaslon_meni_manjsa_vsebina">Contenuto più piccolo</string>
     <string name="os_zaslon_vlecem">Trascinamento: muovi il puntatore e premi OK per rilasciare</string>
     <string name="os_seznanitev_naslov">Nuovo dispositivo</string>

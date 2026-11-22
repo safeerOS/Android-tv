@@ -589,7 +589,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             val sirina = koren.width
             val visina = koren.height
             if (sirina <= 0 || visina <= 0) return@post
-            val merilo = minOf(sirina.toFloat() / sirinaSlike, visina.toFloat() / visinaSlike)
+            // Rob slike (overscan): televizorji, ki del slike odrezejo, dobijo prazen pas; izbira velja za ta zaslon.
+            val (uporabnoW, uporabnoH) = ZaslonRob.velikostSlike(sirina, visina, robPromilov())
+            val merilo = minOf(uporabnoW.toFloat() / sirinaSlike, uporabnoH.toFloat() / visinaSlike)
             val lp = pogled.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.width = (sirinaSlike * merilo).toInt()
             lp.height = (visinaSlike * merilo).toInt()
@@ -1080,6 +1082,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (naDotik() && pov.lahkoZapolni) dejanja.add(getString(
             if (zapolni) R.string.os_zaslon_meni_cela_slika else R.string.os_zaslon_meni_zapolni) to
             { nastaviZapolni(!zapolni) })
+        // Rob slike: televizor, ki odreze rob, skrije zgornje vrstice ali gumbe; z daljincem ga uporabnik doda ali odvzame.
+        if (robPromilov() < ZaslonRob.NAJVEC_PROMILOV) dejanja.add(getString(R.string.os_zaslon_meni_rob_vecji) to
+            { nastaviRob(ZaslonRob.zvecaj(robPromilov())) })
+        if (robPromilov() > 0) dejanja.add(getString(R.string.os_zaslon_meni_rob_manjsi) to
+            { nastaviRob(ZaslonRob.zmanjsaj(robPromilov())) })
         // Predvajalnik ima svoj nacin; iz njega gre uporabnik na kazalec (in nazaj), kot pri drugih.
         if (profil == "predvajalnik" && !predvajalnik)
             dejanja.add(getString(R.string.os_zaslon_meni_predvajalnik) to { nastaviPredvajalnik(true) })
@@ -1106,6 +1113,18 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Shranjeni rob slike za ta zaslon v promilih (0 = brez roba, privzeto). */
+    private fun robPromilov(): Int {
+        val (w, h) = povrsinaZaSliko()
+        return ZaslonRob.omeji(getSharedPreferences("safeer_os", MODE_PRIVATE).getInt(ZaslonRob.kljuc("${w}x$h"), 0))
+    }
+
+    private fun nastaviRob(promilov: Int) {
+        val (w, h) = povrsinaZaSliko()
+        getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putInt(ZaslonRob.kljuc("${w}x$h"), ZaslonRob.omeji(promilov)).apply()
+        uravnajRazmerje(slikaW, slikaH)
     }
 
     /** Bliznjice, ki jih racunalnik pozna; imena posljemo, prevede jih on. */

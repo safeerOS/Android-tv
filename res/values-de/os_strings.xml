@@ -404,6 +404,8 @@
     <string name="os_zaslon_meni_zapolni">Bildschirm füllen</string>
     <string name="os_zaslon_meni_cela_slika">Ganzes Bild</string>
     <string name="os_zaslon_meni_vecja_vsebina">Inhalt größer</string>
+    <string name="os_zaslon_meni_rob_vecji">Bildrand größer</string>
+    <string name="os_zaslon_meni_rob_manjsi">Bildrand kleiner</string>
     <string name="os_zaslon_meni_manjsa_vsebina">Inhalt kleiner</string>
     <string name="os_zaslon_vlecem">Ziehen – Zeiger bewegen und OK drücken zum Loslassen</string>
     <string name="os_seznanitev_naslov">Neues Gerät</string>
