@@ -92,11 +92,12 @@ class ZaslonOdjemalec(
     private val info = MediaCodec.BufferInfo()
     private var slik = 0
     private var zastojev = 0
-    private var zadnjaSlika = 0L
+    /** Pise izhodna nit (pod zaklepom izprazni), bere nit toka brez zaklepa (preveriZastoj). */
+    @Volatile private var zadnjaSlika = 0L
     private var zadnjaZakasnitev = 0L
     /** Meritev dekoderja (22. 11. 2026): slike noter/ven, najvec hkrati v dekoderju, vsota casov za povprecje. */
-    private var slikNoter = 0L
-    private var slikVen = 0L
+    @Volatile private var slikNoter = 0L
+    @Volatile private var slikVen = 0L
     private var najvecVDekoderju = 0
     private var vsotaZakasnitev = 0L
     /** Enote z nastavitvami HEVC, ki cakajo na sliko, s katero gredo skupaj v dekoder. */
@@ -118,6 +119,9 @@ class ZaslonOdjemalec(
     // Usklajevanje zvoka in slike; dejavno samo, ce glava ima "zig": {"okvir": 4} (sicer kot prej).
     // Razen oznacenih jih bere in pise samo nit toka.
     @Volatile private var zigi = false
+    /** Ali seja meri sinhro (okvir 4); brez tega rocni zamik zvoka nima ucinka. */
+    val sinhroDejaven: Boolean get() = zigi
+    private var zavrnjenihZigov = 0
     /** Zig iz okvirja 4, ki caka na naslednji okvir svoje vrste. */
     private var cakaZigSlike: ZaslonSinhro.Zig? = null
     private var cakaZigZvoka: ZaslonSinhro.Zig? = null
@@ -145,6 +149,7 @@ class ZaslonOdjemalec(
     /** Podtoki AudioTrackov, ki smo jih v tej seji ze zamenjali (stevec gre z AudioTrackom v nic). */
     private var podtokovPrej = 0
     private var obnovZvoka = 0
+    private var zadnjaObnovaMs = 0L
     private val casZvoka = AudioTimestamp()
     private var nitPrikaza: HandlerThread? = null
     // Zadnja prikazana slika z zigom: pise nit prikaza, bere nit toka.
@@ -155,7 +160,8 @@ class ZaslonOdjemalec(
     // Zahteva za kljucni okvir (en presojevalec na sejo, ponastavljen ob novi seji v crpaj).
     private val kljucni = ZaslonKljucniOkvir.Presojevalec()
     @Volatile private var cakaKljucni = false
-    @Volatile private var kljucniPtsUs = 0L
+    /** Pts kljucne slike po zahtevi; pise nit toka, pocisti izhodna nit (compareAndSet, brez izgube). */
+    private val kljucniPtsUs = java.util.concurrent.atomic.AtomicLong(0L)
     @Volatile private var slikaPokvarjena = false
     @Volatile private var ponovnaPresojaMs: Long? = null
     @Volatile private var razlogKljucnega = ZaslonKljucniOkvir.Razlog.ZASTOJ_SLIKE
@@ -339,13 +345,14 @@ class ZaslonOdjemalec(
             // Meritev za TV: koliko podtokov je imel zvok v tej seji (pregled Z1, 60 ms medpomnilnik).
             if (zvocnik != null || podtokovPrej > 0)
                 Log.i(TAG, "Zvok: podtokov v seji ${podtokovPrej + podtokov(zvocnik)}, zamik sinhro $uveljavljenZamikMs ms")
-            try { nitPrikaza?.quitSafely() } catch (_: Throwable) { }
-            nitPrikaza = null
             vrstaZvoka.pocisti()
             try { zvocnik?.pause(); zvocnik?.flush(); zvocnik?.release() } catch (_: Throwable) { }
             zvocnik = null
             try { kodek?.stop() } catch (_: Throwable) { }
             try { kodek?.release() } catch (_: Throwable) { }
+            // Nit prikaza koncamo sele po sprostitvi dekoderja (prej bi dekoder posiljal na mrtvo nit).
+            try { nitPrikaza?.quitSafely() } catch (_: Throwable) { }
+            nitPrikaza = null
             try { vticnica?.close() } catch (_: Throwable) { }
             vticnica = null
             tece = false
@@ -448,7 +455,12 @@ class ZaslonOdjemalec(
     /** Okvir 4: zig za NASLEDNJI okvir vrste iz polja "vrsta"; pokvarjen (ali predolg) okvir preskocimo. */
     private fun obZigu(telo: ByteArray) {
         if (!zigi) return
-        val zig = ZaslonSinhro.razcleniZig(telo) ?: return
+        val zig = ZaslonSinhro.razcleniZig(telo)
+        if (zig == null) {
+            zavrnjenihZigov++
+            if (zavrnjenihZigov == 1 || zavrnjenihZigov % 1000 == 0) Log.w(TAG, "Sinhro: neveljaven okvir 4 ($zavrnjenihZigov)")
+            return
+        }
         if (zig.vrsta == OKVIR_SLIKA) cakaZigSlike = zig else cakaZigZvoka = zig
     }
 
@@ -568,7 +580,11 @@ class ZaslonOdjemalec(
         uveljavljenZamikMs = 0L
         zamikSlikeMs = 0L
         vrstaZvoka.pocisti()
+        val zdajObnova = SystemClock.elapsedRealtime()
+        if (zdajObnova - zadnjaObnovaMs > 60_000L) obnovZvoka = 0
+        zadnjaObnovaMs = zdajObnova
         obnovZvoka++
+        if (obnovZvoka > 3) Log.w(TAG, "Zvok: obnov AudioTracka je preveliko, zvok do konca seje ugasnjen")
         // Omejeno, da pokvarjen izhod zvoka ne gradi AudioTracka ob vsakem okvirju; slika tece naprej.
         if (obnovZvoka <= 3) zvocnik = pripraviZvok(zvokHz, zvokKanali)
     }
@@ -589,7 +605,7 @@ class ZaslonOdjemalec(
     /** Nit prikaza: slika s tem pts je bila izrisana ob [nanoTime] (System.nanoTime). */
     private fun obPrikazu(ptsUs: Long, nanoTime: Long) {
         // Kljuc je bil prebran tik pred oddajo v dekoder: pts je enak ali 1 ms vecji.
-        val zig = zigiSlik.natancno(ptsUs) ?: zigiSlik.natancno(ptsUs - 1000L) ?: return
+        val zig = zigiSlik.natancno(ptsUs) ?: return
         synchronized(zaklepPrikaza) {
             prikazZig = zig
             prikazNs = nanoTime
@@ -635,13 +651,14 @@ class ZaslonOdjemalec(
                 vrstaZvoka.prekini()
             }
         } else if (zvokZdaj < zvokPrej) {
-            vrstaZvoka.izpusti(ZaslonZvok.bajtovZaMs(zvokPrej - zvokZdaj, zvokHz, zvokKanali, false))
+            val hoteno = ZaslonZvok.bajtovZaMs(zvokPrej - zvokZdaj, zvokHz, zvokKanali, false)
+            if (vrstaZvoka.izpusti(hoteno) < hoteno) krmilnik.pozabiMeritve()
         }
         Log.i(TAG, "Sinhro: zamik $nov ms (slika ${ZaslonSinhro.zamikSlikeMs(nov)}, zvok $zvokZdaj)")
     }
 
     /** Zadnji izhod slike in stevec slik ven; pod isto kljucavnico kot izprazni (dve niti). */
-    @Synchronized
+    // Brez zaklepa: izhodna nit ga drzi med dequeueOutputBuffer (do IZHOD_CAKAJ_US).
     private fun stanjeIzhoda(): LongArray = longArrayOf(zadnjaSlika, slikVen)
 
     /** Ob vsaki prejeti sliki: zastoj -> zahteva za kljucni okvir; sicer morebitna ponovna presoja. */
@@ -672,7 +689,7 @@ class ZaslonOdjemalec(
         razlogKljucnega = razlog
         val ponovno = ponovnaPresojaMs
         if (ponovno != null && zdaj < ponovno) return
-        val odlocitev = kljucni.presodi(razlog, zdaj)
+        val odlocitev = synchronized(kljucni) { kljucni.presodi(razlog, zdaj) }
         if (odlocitev.poslji) {
             ponovnaPresojaMs = null
             cakaKljucni = true
@@ -685,16 +702,16 @@ class ZaslonOdjemalec(
 
     /** Ce je ta izhod kljucna slika po zahtevi, je uspeh (pogodba: samo nov kljucni okvir po poslani zahtevi). */
     private fun preveriKljucniIzris(ptsUs: Long) {
-        val kljuc = kljucniPtsUs
+        val kljuc = kljucniPtsUs.get()
         if (kljuc == 0L) return
-        if (ZaslonSinhro.ujemaPts(ptsUs, kljuc)) {
-            kljucniPtsUs = 0L
-            kljucni.uspeh(SystemClock.elapsedRealtime())
+        // Kljuc je natanko pts te slike (ena prebrana ura), zato brez tolerance.
+        if (ptsUs == kljuc) {
+            if (!kljucniPtsUs.compareAndSet(kljuc, 0L)) return
+            synchronized(kljucni) { kljucni.uspeh(SystemClock.elapsedRealtime()) }
             slikaPokvarjena = false
             ponovnaPresojaMs = null
-        } else if (ptsUs - kljuc > 1000L) {
+        } else if (ptsUs > kljuc && kljucniPtsUs.compareAndSet(kljuc, 0L)) {
             // Kljucna slika ni prisla ven (dekoder jo je zavrgel): cakamo naslednjo.
-            kljucniPtsUs = 0L
             cakaKljucni = true
         }
     }
@@ -746,7 +763,7 @@ class ZaslonOdjemalec(
         krmilnik.ponastavi(); vrstaZvoka.pocisti(); uveljavljenZamikMs = 0L; zamikSlikeMs = 0L
         zapisanihOkvirjev = 0L; podtokovPrej = 0; obnovZvoka = 0
         synchronized(zaklepPrikaza) { prikazNov = false }
-        kljucni.ponastavi(); cakaKljucni = false; kljucniPtsUs = 0L; slikaPokvarjena = false; ponovnaPresojaMs = null
+        kljucni.ponastavi(); cakaKljucni = false; kljucniPtsUs.set(0L); slikaPokvarjena = false; ponovnaPresojaMs = null
         zacetekSejeMs = SystemClock.elapsedRealtime()
         // Cele slike (H.264): izhod dekoderja prazni svoja nit, ki na dekoder caka - sicer slika, ki se dekodira
         // dlje od trenutka branja, pride na zaslon sele ob naslednjem okvirju z omrezja (izmerjeno ~50 ms).
@@ -782,27 +799,8 @@ class ZaslonOdjemalec(
             bajtov += dolzina + glava.size
             if (vrsta == OKVIR_ZVOK) {
                 imelZvok = true
-                try {
-                    val sprejeto = zvocnik?.write(telo, 0, dolzina, AudioTrack.WRITE_NON_BLOCKING)
-                    // Meritev (samo branje vrnjene vrednosti in stevci za dnevnik).
-                    try {
-                        val ponujenoSkupaj = casZvokPonujeno.addAndGet(dolzina.toLong())
-                        val sprejetoSkupaj = casZvokSprejeto.addAndGet(maxOf(sprejeto ?: 0, 0).toLong())
-                        if (casPrviWrite.compareAndSet(false, true)) {
-                            casPrviWriteMs.set(SystemClock.elapsedRealtime())
-                            cas("prvi_write", "bajti=$dolzina sprejeto=$sprejeto ponujeno_skupaj=$ponujenoSkupaj " +
-                                "sprejeto_skupaj=$sprejetoSkupaj " + casZvocnik(zvocnik))
-                        }
-                        if (!casZvokNeprazen.get() && telo.any { it != 0.toByte() } && casZvokNeprazen.compareAndSet(false, true)) {
-                            cas("prvi_zvok_neprazen", "ponujeno_skupaj=$ponujenoSkupaj sprejeto_skupaj=$sprejetoSkupaj")
-                        }
-                        if (!casZvokPo5s.get() && SystemClock.elapsedRealtime() - casPrviWriteMs.get() >= 5000 &&
-                            casZvokPo5s.compareAndSet(false, true)) {
-                            // Realni cas: ~960000 B v 5 s; ponujeno >> sprejeto = TV izpusca (sunek zaostanka).
-                            cas("zvok_po_5s", "ponujeno_skupaj=$ponujenoSkupaj sprejeto_skupaj=$sprejetoSkupaj " + casZvocnik(zvocnik))
-                        }
-                    } catch (_: Throwable) { }
-                } catch (_: Throwable) { }
+                // Sem pride samo brez AudioTracka (zgornja veja ima zvocnik != null): pisati ni kam.
+                casPonudi(telo, dolzina)
                 continue
             }
             if (vrsta == OKVIR_OBVESTILO) {
@@ -948,18 +946,19 @@ class ZaslonOdjemalec(
         if (spredaj.isNotEmpty()) medpomnilnik.put(spredaj)
         medpomnilnik.put(vir, od, do_ - od)
         // Kljuc za zig in kljucno sliko: pts v naslednji vrstici je ista ura, prebrana tik za tem (enak ali +1 ms).
+        // Ena sama prebrana ura: pts in kljuc za zig / kljucno sliko sta vedno enaka.
+        val ptsUs = SystemClock.elapsedRealtime() * 1000
         if (!ZaslonKodek.jeNastavitev(hevc, vrsta)) {
-            val kljucUs = SystemClock.elapsedRealtime() * 1000
             val zig = zigSlike
-            if (zig != null) zigiSlik.dodaj(kljucUs, zig)
+            if (zig != null) zigiSlik.dodaj(ptsUs, zig)
             if (cakaKljucni && vsebujeKljucno(vir, od, do_)) {
                 cakaKljucni = false
-                kljucniPtsUs = kljucUs
+                kljucniPtsUs.set(ptsUs)
             }
         }
         val zastavice = if (ZaslonKodek.jeNastavitev(hevc, vrsta)) MediaCodec.BUFFER_FLAG_CODEC_CONFIG else 0
         // Cas oddaje uporabimo kot zig: ob izhodu iz dekoderja iz njega izracunamo zakasnitev.
-        kodek.queueInputBuffer(i, 0, dolzina, SystemClock.elapsedRealtime() * 1000, zastavice)
+        kodek.queueInputBuffer(i, 0, dolzina, ptsUs, zastavice)
         // Meritev: prva enota slike (ne nastavitve) v dekoderju.
         if (zastavice == 0 && casPrvaVDekoder.compareAndSet(false, true)) cas("prva_slika_v_dekoder", "bajti=$dolzina nal=$vrsta")
         if (zastavice == 0) slikNoter++

@@ -1091,9 +1091,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             { nastaviRob(ZaslonRob.zmanjsaj(robPromilov())) })
         // Rocni zamik zvoka (soundbar, TV z dolgo zakasnitvijo zvoka): po 10 ms, do +-400 ms, shranjen za ta zaslon.
         val zamikZvoka = rocniZamikZvoka()
-        if (zamikZvoka < ZaslonSinhro.NAJVEC_ZAMIK_MS) dejanja.add(getString(R.string.os_zaslon_meni_zvok_kasneje, zamikZvoka) to
+        if (odjemalec?.sinhroDejaven == true && zamikZvoka < ZaslonSinhro.NAJVEC_ZAMIK_MS) dejanja.add(getString(R.string.os_zaslon_meni_zvok_kasneje, zamikZvoka) to
             { nastaviRocniZamikZvoka(ZaslonSinhro.rocniKorak(rocniZamikZvoka(), true)) })
-        if (zamikZvoka > -ZaslonSinhro.NAJVEC_ZAMIK_MS) dejanja.add(getString(R.string.os_zaslon_meni_zvok_prej, zamikZvoka) to
+        if (odjemalec?.sinhroDejaven == true && zamikZvoka > -ZaslonSinhro.NAJVEC_ZAMIK_MS) dejanja.add(getString(R.string.os_zaslon_meni_zvok_prej, zamikZvoka) to
             { nastaviRocniZamikZvoka(ZaslonSinhro.rocniKorak(rocniZamikZvoka(), false)) })
         // Predvajalnik ima svoj nacin; iz njega gre uporabnik na kazalec (in nazaj), kot pri drugih.
         if (profil == "predvajalnik" && !predvajalnik)
