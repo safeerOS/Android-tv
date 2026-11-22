@@ -373,7 +373,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             glavna.postDelayed({ if (!isFinishing && !koncujem && seja == null && !prosim) zahtevajSejo() }, 250)
             return
         }
-        omrezje = OmrezjeNaprave.vrsta(this)
+        // Omrezje vmesnika, po katerem gre slika do racunalnika (kabel!), sicer privzeto omrezje Androida (22. 11. 2026).
+        omrezje = OmrezjeNaprave.vrstaProti(this, link.odjemalec.naslovZaPovezavo(r)) ?: OmrezjeNaprave.vrsta(this)
         android.util.Log.i("SafeerZaslon", "omrezje naprave: \"$omrezje\" (${OmrezjeNaprave.opis(this)})")
         if (brezNaslova && !OmrezjePravila.dovoliZdoma(omrezje)) {
             val razlog = getString(R.string.os_zaslon_potreben_4g, OmrezjePravila.oznaka(omrezje))
@@ -721,7 +722,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                     "${s.sirina}x${s.visina} ${s.naSekundo} sl/s ${s.megabitov} Mb/s " +
                     "dekoder ${s.dekoderMs} ms zvok=${s.zvok} zastojev=${s.zastojev} " +
                     "pot=${if (odjemalec?.prekHuba == true) "global" else "neposredno"} " +
-                    "privzeto_omrezje_androida=$omrezje tok=${odjemalec?.opisToka().orEmpty()}")
+                    "omrezje_poti=$omrezje tok=${odjemalec?.opisToka().orEmpty()}")
                 // Kdor jih je v meniju seje vklopil, jih vidi (iskanje vzroka, kadar slika zdoma ne tece gladko).
                 if (podatkiVidni) runOnUiThread {
                     if (isFinishing || !podatkiVidni) return@runOnUiThread

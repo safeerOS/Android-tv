@@ -69,6 +69,41 @@ object OmrezjeNaprave {
         OmrezjePravila.NEZNANO
     }
 
+    /**
+     * Omrezje, po katerem gre promet do [naslov] (racunalnik): kabel ali Wi-Fi tega vmesnika - ne privzeto omrezje
+     * Androida. TV s kablom neposredno do racunalnika ima za privzeto omrezje Wi-Fi (meritev 22. 11. 2026: TV je javljal
+     * »wifi«, slika pa je tekla po kablu). UDP connect ne poslje paketa; samo izbere lokalni naslov po poti.
+     * Null, ce ne vemo (ime namesto naslova na glavni niti, ni vmesnika) - takrat velja [vrsta].
+     */
+    fun vrstaProti(context: Context, naslov: String): String? = try {
+        val gost = naslov.trim().let { if ("://" in it) java.net.URI(it).host.orEmpty() else it.substringBeforeLast(':') }
+            .trim('[', ']')
+        if (gost.isBlank() || !gost.all { it.isDigit() || it == '.' }) null else {
+            // Glavna nit ne sme na omrezje (NetworkOnMainThreadException): izbira lokalnega naslova v kratki niti.
+            var lokalni: java.net.InetAddress? = null
+            val nit = Thread {
+                try {
+                    java.net.DatagramSocket().use { s -> s.connect(java.net.InetAddress.getByName(gost), 9); lokalni = s.localAddress }
+                } catch (_: Throwable) {}
+            }
+            nit.start(); nit.join(300)
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            @Suppress("DEPRECATION")
+            val omrezje = cm?.allNetworks?.firstOrNull { n ->
+                lokalni != null && cm.getLinkProperties(n)?.linkAddresses?.any { it.address == lokalni } == true
+            }
+            val z = omrezje?.let { cm.getNetworkCapabilities(it) }
+            when {
+                z == null -> null
+                z.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> OmrezjePravila.ETHERNET
+                z.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> OmrezjePravila.WIFI
+                else -> null
+            }
+        }
+    } catch (e: Throwable) {
+        null
+    }
+
     /** Za dnevnik: vrsta podatkovnega omrezja in prikaz, kot ju vrne sistem (brez osebnih podatkov). */
     fun opis(context: Context): String = "tip=${tip(context)} prikaz=$prikaz"
 
