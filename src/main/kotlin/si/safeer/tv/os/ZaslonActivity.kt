@@ -400,8 +400,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Ce je dekoder HEVC v tej razlicici aplikacije ze odpovedal (znovaBrezHevc), ga ne ponudimo vec.
         val velikost = zahteva.optJSONObject("view")
         val hevc = android.media.MediaFormat.MIMETYPE_VIDEO_HEVC
-        val hevcZmore = ZaslonKodek.hevcDovoljen(
-                getSharedPreferences("safeer_os", MODE_PRIVATE).getLong(KLJUC_BREZ_HEVC, 0L), razlicicaAplikacije()) &&
+        val hevcZmore = hevcSeSmePonuditi() &&
             dekodirnikZmore(1920, 1080, hevc, samoStrojni = true) &&
             (velikost == null || dekodirnikZmore(velikost.optInt("w", 1920), velikost.optInt("h", 1080), hevc,
                 samoStrojni = true))
@@ -485,9 +484,22 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      * programe: slika zapolni cel zaslon te naprave, brez crnih robov. Pravega zaslona racunalnika ne spremeni.
      * Velikost je najvecja, ki jo strojni dekodirnik zmore pri 60 slikah na sekundo; null = polja ne posljemo.
      */
+    /** HEVC ponudimo, ce v tej razlicici aplikacije se ni odpovedal in ga naprava strojno dekodira (1080p). */
+    private fun hevcSeSmePonuditi(): Boolean =
+        ZaslonKodek.hevcDovoljen(getSharedPreferences("safeer_os", MODE_PRIVATE).getLong(KLJUC_BREZ_HEVC, 0L),
+            razlicicaAplikacije()) &&
+            dekodirnikZmore(1920, 1080, android.media.MediaFormat.MIMETYPE_VIDEO_HEVC, samoStrojni = true)
+
     private fun pogledZaRacunalnik(): JSONObject? {
         val (w, h) = povrsinaZaSliko()
-        val velikost = ZaslonPogled.velikost(w, h) { sw, sh -> dekodirnikZmore(sw, sh) } ?: return null
+        // Velikost slike meri dekodirnik kodeka, ki ga bo seja res uporabila: HEVC (MTK do 4K) ali H.264 (MTK ~2K).
+        // Brez tega bi 4K TV vedno dobil ~2K, ceprav HEVC zmore 3840x2160.
+        val hevcPonudimo = hevcSeSmePonuditi()
+        val vrstaSlike = if (hevcPonudimo) android.media.MediaFormat.MIMETYPE_VIDEO_HEVC
+            else android.media.MediaFormat.MIMETYPE_VIDEO_AVC
+        val velikost = ZaslonPogled.velikost(w, h) { sw, sh ->
+            dekodirnikZmore(sw, sh, vrstaSlike, samoStrojni = hevcPonudimo)
+        } ?: return null
         val dotik = naDotik()
         val pogled = JSONObject().put("w", velikost.first).put("h", velikost.second)
             .put("density", resources.displayMetrics.density.toDouble()).put("touch", dotik)
