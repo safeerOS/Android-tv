@@ -68,7 +68,7 @@ object ZaslonSinhro {
      * Mediana je odporna na posamezne osamelce (npr. enkraten skok zaradi zastoja omrezja ali medpomnilnika).
      */
     class Glajenje(val velikost: Int = 15) {
-        private val vzorci = LongArray(velikost.also { require(it >= 1) { "velikost mora biti vsaj 1" } })
+        private val vzorci = LongArray(velikost.also { require(it >= NAJMANJ_MERITEV) { "velikost mora biti vsaj $NAJMANJ_MERITEV, sicer mediana nikoli ne vrne popravka" } })
         private var stevilo = 0
         private var naslednji = 0
 

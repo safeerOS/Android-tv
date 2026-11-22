@@ -292,11 +292,14 @@ class ZaslonOdjemalec(
      * majhen (okrog 60 ms), ker je cilj, da zvok ne zaostaja za sliko.
      */
     private fun pripraviZvok(hz: Int, kanali: Int): AudioTrack? = try {
-        val razpored = if (kanali >= 2) AudioFormat.CHANNEL_OUT_STEREO else AudioFormat.CHANNEL_OUT_MONO
+        // Kanale normaliziramo enkrat (pregled Grok L6, 22. 11. 2026): razpored in velikost medpomnilnika izhajata iz istega stevila,
+        // sicer bi kanali <= 0 dali mono razpored s stereo velikostjo (dvakrat daljsi medpomnilnik).
+        val kanaliZvoka = minOf(ZaslonZvok.kanaliVeljavni(kanali), 2)
+        val razpored = if (kanaliZvoka >= 2) AudioFormat.CHANNEL_OUT_STEREO else AudioFormat.CHANNEL_OUT_MONO
         val najmanj = AudioTrack.getMinBufferSize(hz, razpored, AudioFormat.ENCODING_PCM_16BIT)
         // Velikost po pravilih ZaslonZvok (ciljno ~60 ms, poravnano na cel vzorec, nikoli pod sistemskim najmanjsim).
         // Veckanalni zvok (5.1) se vkljuci sele, ko ga racunalnik poslje in je preizkusen na TV: zdaj samo mono/stereo.
-        val velikost = ZaslonZvok.medpomnilnikBajtov(hz, minOf(kanali, 2), false,
+        val velikost = ZaslonZvok.medpomnilnikBajtov(hz, kanaliZvoka, false,
             ZaslonZvok.CILJNI_MEDPOMNILNIK_MS, maxOf(najmanj, 0))
         AudioTrack.Builder()
             .setAudioAttributes(AudioAttributes.Builder()

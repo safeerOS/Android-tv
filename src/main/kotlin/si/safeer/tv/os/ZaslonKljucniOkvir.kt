@@ -36,6 +36,16 @@ object ZaslonKljucniOkvir {
     /**
      * Stanjski presojevalec zahtev po kljucnem okvirju.
      * Cas [zdajMs] je vedno podan kot parameter zaradi deterministicnosti.
+     *
+     * POGODBA ZA KLICATELJA (neodvisni pregled 22. 11. 2026, KLJUC1-1, 3, 5, 6, 11, 12):
+     * - Cas mora biti MONOTONA ura (SystemClock.elapsedRealtime), nikoli stenska ura: cas, ki gre nazaj, se
+     *   steje kot zadnji znani cas, en sam napacen cas v prihodnosti pa bi zamrznil presojevalca do konca seje.
+     * - [uspeh] klici samo, ko je po poslani zahtevi res prikazan nov kljucni okvir (ne ob vsakem prikazanem IDR).
+     * - Ob `poslji = false` mora klicatelj, ce je slika se pokvarjena, presoditi znova cez `cakajMs`.
+     * - ROCNO ima lasten najkrajsi razmik 100 ms: tipko ali ukaz mora klicatelj sam omejiti na dejanske pritiske.
+     * - [ponastavi] samo ob novi seji prenosa, ne ob vsaki ponovni inicializaciji dekodirnika (takoj sprosti zahtevo).
+     * - En presojevalec na sejo prenosa (ne deljen med sejami). Metode so sinhronizirane, ker jih lahko
+     *   kliceta nit dekodirnika in nit uporabniskega vmesnika.
      */
     class Presojevalec {
         private var zadnjaZahtevaMs: Long? = null
@@ -46,12 +56,13 @@ object ZaslonKljucniOkvir {
 
         /** Stevilo zaporednih zahtev od zadnjega uspeha oziroma zacetka. */
         val zaporednihNeuspelih: Int
-            get() = stevecZaporednih
+            @Synchronized get() = stevecZaporednih
 
         /**
          * Presodi, ali je dovoljeno poslati zahtevo za kljucni okvir ob casu [zdajMs].
          * Ce gre [zdajMs] nazaj v casu, se obravnava kot zadnji znani cas.
          */
+        @Synchronized
         fun presodi(razlog: Razlog, zdajMs: Long): Odlocitev {
             val cas = uskladiCas(zdajMs)
             val zadnja = zadnjaZahtevaMs
@@ -81,6 +92,7 @@ object ZaslonKljucniOkvir {
          * Ponastavi razmik na [ZACETNI_RAZMIK_MS], stevec zaporednih na 0 in sprozi
          * obdobje tisine [TISINA_PO_USPEHU_MS] za samodejne zahteve.
          */
+        @Synchronized
         fun uspeh(zdajMs: Long) {
             val cas = uskladiCas(zdajMs)
             trenutniRazmikMs = ZACETNI_RAZMIK_MS.coerceIn(NAJMANJ_RAZMIK_MS, NAJVEC_RAZMIK_MS)
@@ -89,6 +101,7 @@ object ZaslonKljucniOkvir {
         }
 
         /** Ponastavi celotno notranje stanje v zacetno stanje. */
+        @Synchronized
         fun ponastavi() {
             zadnjaZahtevaMs = null
             zadnjiUspehMs = null

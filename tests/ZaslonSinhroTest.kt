@@ -93,5 +93,10 @@ fun main() {
     okno.dodaj(-25L)
     check(okno.mediana() == -25L) { "po ponastavitvi in 5 meritvah vrne novo mediano" }
 
+    // Pregled Grok L1: okno manjse od NAJMANJ_MERITEV bi vedno vracalo null, zato ga zavrnemo ze ob izdelavi.
+    val premajhnoZavrnjeno = try { ZaslonSinhro.Glajenje(3); false } catch (_: IllegalArgumentException) { true }
+    check(premajhnoZavrnjeno) { "Glajenje(3) mora biti zavrnjeno" }
+    check(ZaslonSinhro.Glajenje(ZaslonSinhro.NAJMANJ_MERITEV).mediana() == null) { "Glajenje(5) je veljavno" }
+
     println("ZaslonSinhroTest: OK")
 }
