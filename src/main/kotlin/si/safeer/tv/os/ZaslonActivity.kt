@@ -405,6 +405,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             (velikost == null || dekodirnikZmore(velikost.optInt("w", 1920), velikost.optInt("h", 1080), hevc,
                 samoStrojni = true))
         zahteva.put("codecs", org.json.JSONArray(ZaslonKodek.seznam(hevcZmore)))
+        // 4K samo s HEVC in samo ce ga ta naprava strojno dekodira v tej velikosti (racunalnik brez te izjave ostane
+        // pri 1920 x 1080 s H.264). Brez HEVC kljuca ne dodamo: obnasanje kot prej.
+        if (hevcZmore && dekodirnikZmore(3840, 2160, hevc, samoStrojni = true)) {
+            zahteva.put("maxsize", org.json.JSONObject()
+                .put("hevc", org.json.JSONArray().put(3840).put(2160))
+                .put("h264", org.json.JSONArray().put(1920).put(1080)))
+        }
         if (predano) zahteva.put("handoff", true)
         link.ukaz(r.id, "screen.start", zahteva, 15_000,
             LinkOdjemalec.Odgovor { izid, napaka ->
