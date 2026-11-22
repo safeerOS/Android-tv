@@ -3,7 +3,7 @@
 A privacy-first web browser for Android TV, built to be driven with a remote control —
 plus **Safeer OS**, a home screen for the same television, built from the same source.
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-AGPL_3.0_%2B_commercial-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android_TV_9%2B-3ddc84?style=flat-square)](#requirements)
 [![Downloads](https://img.shields.io/badge/Download-Releases-00e5ff?style=flat-square)](../../releases/latest)
 [![Latest release](https://img.shields.io/github/v/release/safeerOS/Android-tv?style=flat-square&label=release)](../../releases/latest)
@@ -159,4 +159,4 @@ go through [SECURITY.md](SECURITY.md), privately, not in a public issue.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+GNU AGPL-3.0 — see [LICENSE](LICENSE). Closed or paid use: [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).

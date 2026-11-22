@@ -3,7 +3,7 @@
 Brskalnik za Android TV, ki postavlja zasebnost na prvo mesto in je narejen za upravljanje z
 daljincem — poleg njega pa **Safeer OS**, domači zaslon za isti televizor, zgrajen iz iste kode.
 
-[![Licenca](https://img.shields.io/badge/Licenca-Apache_2.0-blue?style=flat-square)](LICENSE)
+[![Licenca](https://img.shields.io/badge/Licenca-AGPL_3.0_%2B_komercialna-blue?style=flat-square)](LICENSE)
 [![Platforma](https://img.shields.io/badge/Platforma-Android_TV_9%2B-3ddc84?style=flat-square)](#zahteve)
 [![Prenos](https://img.shields.io/badge/Prenos-Izdaje-00e5ff?style=flat-square)](../../releases/latest)
 [![Zadnja izdaja](https://img.shields.io/github/v/release/safeerOS/Android-tv?style=flat-square&label=izdaja)](../../releases/latest)
@@ -155,4 +155,4 @@ Varnostne težave gredo po poti iz [SECURITY.md](SECURITY.md), zasebno in ne v j
 
 ## Licenca
 
-Apache License 2.0 — glej [LICENSE](LICENSE).
+GNU AGPL-3.0 — glej [LICENSE](LICENSE). Zaprta ali plačljiva raba: [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).

@@ -1,6 +1,6 @@
 # Contributing to Safeer
 
-Thank you for taking the time. This project is Apache-2.0 and patches are welcome.
+Thank you for taking the time. This project is AGPL-3.0 and patches are welcome. By contributing you agree that your patch is licensed under AGPL-3.0 and may also be offered under the project's commercial licence (see COMMERCIAL-LICENSE.md).
 
 ## The one rule that is not negotiable
 
