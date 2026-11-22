@@ -58,6 +58,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/DiskPreizkus.kt" \
     "$SRC/si/safeer/tv/os/BesedilaPravila.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPovecava.kt" \
+    "$SRC/si/safeer/tv/os/ZaslonRob.kt" \
+    "$SRC/si/safeer/tv/os/ZaslonSinhro.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPogled.kt" \
     "$SRC/si/safeer/tv/os/ZaslonKodek.kt" \
     "$SRC/si/safeer/tv/os/OmrezjePravila.kt" \
@@ -116,6 +118,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/DiskPravilaTest.kt" \
     "$TEST_DIR/BesedilaPravilaTest.kt" \
     "$TEST_DIR/ZaslonPovecavaTest.kt" \
+    "$TEST_DIR/ZaslonRobTest.kt" \
+    "$TEST_DIR/ZaslonSinhroTest.kt" \
     "$TEST_DIR/ZaslonPogledTest.kt" \
     "$TEST_DIR/ZaslonKodekTest.kt" \
     "$TEST_DIR/OmrezjePravilaTest.kt" \
@@ -374,6 +378,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PredpomnilnikPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DiskPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.BesedilaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonPovecavaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonRobTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonSinhroTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonPogledTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonKodekTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OmrezjePravilaTestKt
