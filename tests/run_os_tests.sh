@@ -122,6 +122,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ZaslonPovecavaTest.kt" \
     "$TEST_DIR/ZaslonRobTest.kt" \
     "$TEST_DIR/ZaslonSinhroTest.kt" \
+    "$TEST_DIR/ZaslonSinhroVgradnjaTest.kt" \
     "$TEST_DIR/ZaslonZvokTest.kt" \
     "$TEST_DIR/ZaslonKljucniOkvirTest.kt" \
     "$TEST_DIR/ZaslonPogledTest.kt" \
@@ -384,6 +385,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.BesedilaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonPovecavaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonRobTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonSinhroTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonSinhroVgradnjaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonZvokTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonKljucniOkvirTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonPogledTestKt

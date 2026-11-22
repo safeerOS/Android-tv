@@ -406,6 +406,8 @@
     <string name="os_zaslon_meni_vecja_vsebina">Contenido más grande</string>
     <string name="os_zaslon_meni_rob_vecji">Margen de imagen mayor</string>
     <string name="os_zaslon_meni_rob_manjsi">Margen de imagen menor</string>
+    <string name="os_zaslon_meni_zvok_kasneje">Audio más tarde (ahora %1$d ms)</string>
+    <string name="os_zaslon_meni_zvok_prej">Audio antes (ahora %1$d ms)</string>
     <string name="os_zaslon_meni_manjsa_vsebina">Contenido más pequeño</string>
     <string name="os_zaslon_vlecem">Arrastrando: mueve el puntero y pulsa OK para soltar</string>
     <string name="os_seznanitev_naslov">Nuevo dispositivo</string>

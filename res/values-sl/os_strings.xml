@@ -411,6 +411,8 @@
     <string name="os_zaslon_meni_vecja_vsebina">Večja vsebina</string>
     <string name="os_zaslon_meni_rob_vecji">Večji rob slike</string>
     <string name="os_zaslon_meni_rob_manjsi">Manjši rob slike</string>
+    <string name="os_zaslon_meni_zvok_kasneje">Zvok kasneje (zdaj %1$d ms)</string>
+    <string name="os_zaslon_meni_zvok_prej">Zvok prej (zdaj %1$d ms)</string>
     <string name="os_zaslon_meni_manjsa_vsebina">Manjša vsebina</string>
     <string name="os_zaslon_vlecem">Vlečeš – premakni kazalec in pritisni OK, da spustiš</string>
     <string name="os_seznanitev_naslov">Nova naprava</string>

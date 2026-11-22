@@ -406,6 +406,8 @@
     <string name="os_zaslon_meni_vecja_vsebina">Contenu plus grand</string>
     <string name="os_zaslon_meni_rob_vecji">Marge d\'image plus grande</string>
     <string name="os_zaslon_meni_rob_manjsi">Marge d\'image plus petite</string>
+    <string name="os_zaslon_meni_zvok_kasneje">Son plus tard (actuellement %1$d ms)</string>
+    <string name="os_zaslon_meni_zvok_prej">Son plus tôt (actuellement %1$d ms)</string>
     <string name="os_zaslon_meni_manjsa_vsebina">Contenu plus petit</string>
     <string name="os_zaslon_vlecem">Glissement – déplacez le pointeur et appuyez sur OK pour déposer</string>
     <string name="os_seznanitev_naslov">Nouvel appareil</string>

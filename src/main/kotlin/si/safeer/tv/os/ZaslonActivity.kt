@@ -748,6 +748,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             },
             naObvestilo = { ob -> runOnUiThread { obvestilo(ob) } })
         odjemalec = o
+        // Shranjeni rocni zamik zvoka za ta zaslon velja od prve meritve sinhro naprej.
+        o.rocniZamikZvokaMs = rocniZamikZvoka()
         o.zacni(pogled.holder.surface)
     }
 
@@ -1087,6 +1089,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             { nastaviRob(ZaslonRob.zvecaj(robPromilov())) })
         if (robPromilov() > 0) dejanja.add(getString(R.string.os_zaslon_meni_rob_manjsi) to
             { nastaviRob(ZaslonRob.zmanjsaj(robPromilov())) })
+        // Rocni zamik zvoka (soundbar, TV z dolgo zakasnitvijo zvoka): po 10 ms, do +-400 ms, shranjen za ta zaslon.
+        val zamikZvoka = rocniZamikZvoka()
+        if (zamikZvoka < ZaslonSinhro.NAJVEC_ZAMIK_MS) dejanja.add(getString(R.string.os_zaslon_meni_zvok_kasneje, zamikZvoka) to
+            { nastaviRocniZamikZvoka(ZaslonSinhro.rocniKorak(rocniZamikZvoka(), true)) })
+        if (zamikZvoka > -ZaslonSinhro.NAJVEC_ZAMIK_MS) dejanja.add(getString(R.string.os_zaslon_meni_zvok_prej, zamikZvoka) to
+            { nastaviRocniZamikZvoka(ZaslonSinhro.rocniKorak(rocniZamikZvoka(), false)) })
         // Predvajalnik ima svoj nacin; iz njega gre uporabnik na kazalec (in nazaj), kot pri drugih.
         if (profil == "predvajalnik" && !predvajalnik)
             dejanja.add(getString(R.string.os_zaslon_meni_predvajalnik) to { nastaviPredvajalnik(true) })
@@ -1125,6 +1133,20 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         val (w, h) = povrsinaZaSliko()
         getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putInt(ZaslonRob.kljuc("${w}x$h"), ZaslonRob.omeji(promilov)).apply()
         uravnajRazmerje(slikaW, slikaH)
+    }
+
+    /** Shranjeni rocni zamik zvoka za ta zaslon v ms (+ = zvok kasneje, 0 = privzeto). */
+    private fun rocniZamikZvoka(): Long {
+        val (w, h) = povrsinaZaSliko()
+        return ZaslonSinhro.omejiRocniZamik(getSharedPreferences("safeer_os", MODE_PRIVATE)
+            .getLong(ZaslonSinhro.kljucZamika("${w}x$h"), 0L))
+    }
+
+    private fun nastaviRocniZamikZvoka(ms: Long) {
+        val (w, h) = povrsinaZaSliko()
+        val omejeno = ZaslonSinhro.omejiRocniZamik(ms)
+        getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putLong(ZaslonSinhro.kljucZamika("${w}x$h"), omejeno).apply()
+        odjemalec?.rocniZamikZvokaMs = omejeno
     }
 
     /** Bliznjice, ki jih racunalnik pozna; imena posljemo, prevede jih on. */

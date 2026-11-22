@@ -406,6 +406,8 @@
     <string name="os_zaslon_meni_vecja_vsebina">Inhalt größer</string>
     <string name="os_zaslon_meni_rob_vecji">Bildrand größer</string>
     <string name="os_zaslon_meni_rob_manjsi">Bildrand kleiner</string>
+    <string name="os_zaslon_meni_zvok_kasneje">Ton später (jetzt %1$d ms)</string>
+    <string name="os_zaslon_meni_zvok_prej">Ton früher (jetzt %1$d ms)</string>
     <string name="os_zaslon_meni_manjsa_vsebina">Inhalt kleiner</string>
     <string name="os_zaslon_vlecem">Ziehen – Zeiger bewegen und OK drücken zum Loslassen</string>
     <string name="os_seznanitev_naslov">Neues Gerät</string>

@@ -128,4 +128,138 @@ object ZaslonZvok {
         }
         return zaZapis
     }
+
+    /** Vecja razlika med zigom in zigom, izracunanim iz prejsnjega ziga in "bajt" (ms), pomeni vrzel: nov odsek. */
+    const val ZVEZNOST_MS = 40L
+
+    /**
+     * Ali se zvok z zigom [zigMs] in stevcem [bajt] zvezno nadaljuje iz prejsnjega ziga: pricakovan zig je
+     * [prejZigMs] + trajanje bajtov med obema. Vrzel (izpusceni ali neposlani tihi vzorci, poravnava ure
+     * na racunalniku) nad [ZVEZNOST_MS] ali stevec nazaj -> false.
+     */
+    fun zvezenOdsek(prejZigMs: Long, prejBajt: Long, zigMs: Long, bajt: Long, hz: Int, kanali: Int, float32: Boolean): Boolean {
+        if (bajt < prejBajt) return false
+        val frekvenca = if (hz <= 0) PRIVZETA_FREKVENCA_HZ else hz
+        val vzorcev = (bajt - prejBajt) / velikostVzorca(kanali, float32)
+        val razlika = zigMs - (prejZigMs + vzorcev * 1000L / frekvenca)
+        return razlika <= ZVEZNOST_MS && razlika >= -ZVEZNOST_MS
+    }
+
+    /**
+     * Meja za izpust zaostalega zvoka: namerni zamik zvoka (tisina v vrsti) + dvakratni ciljni medpomnilnik.
+     * Fiksnih 120 ms bi odvrglo namerno zakasnjen zvok (pregled S3/Z3).
+     */
+    fun mejaIzpustaMs(namerniZamikMs: Long): Long = maxOf(namerniZamikMs, 0L) + 2L * CILJNI_MEDPOMNILNIK_MS
+
+    /** Koliko ms zvoka izpustiti, da zaostanek pade na namerni zamik + ciljni medpomnilnik; 0, ce ni cez mejo. */
+    fun zaIzpustMs(zaostanekMs: Long, namerniZamikMs: Long): Long =
+        if (izpustiStarega(zaostanekMs, mejaIzpustaMs(namerniZamikMs))) {
+            zaostanekMs - (maxOf(namerniZamikMs, 0L) + CILJNI_MEDPOMNILNIK_MS)
+        } else {
+            0L
+        }
+
+    /** Stevilo bajtov za [ms] zvoka, vedno cel vzorec; nepozitivno -> 0, frekvenca <= 0 -> 48000 Hz. */
+    fun bajtovZaMs(ms: Long, hz: Int, kanali: Int, float32: Boolean): Int {
+        if (ms <= 0L) return 0
+        val frekvenca = if (hz <= 0) PRIVZETA_FREKVENCA_HZ else hz
+        val vzorecBajtov = velikostVzorca(kanali, float32).toLong()
+        val bajtov = (frekvenca.toLong() * ms / 1000L) * vzorecBajtov
+        val najvec = (Int.MAX_VALUE.toLong() / vzorecBajtov) * vzorecBajtov
+        return minOf(bajtov, najvec).toInt()
+    }
+
+    /**
+     * Okvirji, ki so v AudioTracku zapisani in se niso predvajani. Glava predvajanja (getPlaybackHeadPosition)
+     * je 32-bitna in se po ~24 h pri 48 kHz prelije, zato racunamo po modulu 2^32.
+     */
+    fun vTrackuOkvirjev(zapisanihOkvirjev: Long, glavaPredvajanja: Int): Long {
+        val razlika = (zapisanihOkvirjev - (glavaPredvajanja.toLong() and 0xFFFFFFFFL)) and 0xFFFFFFFFL
+        return if (razlika > Int.MAX_VALUE.toLong()) 0L else razlika
+    }
+
+    /** Skupni zaostanek zvoka v ms: okvirji v AudioTracku + bajti v nasi vrsti. */
+    fun zaostanekMs(vTrackuOkvirjev: Long, bajtovVVrsti: Int, hz: Int, kanali: Int, float32: Boolean): Long {
+        val frekvenca = if (hz <= 0) PRIVZETA_FREKVENCA_HZ else hz
+        val vTracku = if (vTrackuOkvirjev <= 0L) 0L else vTrackuOkvirjev * 1000L / frekvenca
+        return vTracku + zakasnitevMs(bajtovVVrsti, frekvenca, kanali, float32)
+    }
+
+    /** Zig zajema bajta [odmikBajtov] znotraj okvirja z zigom [zig] (zacetek okvirja). */
+    fun zigPoOdmiku(zig: Long, odmikBajtov: Int, hz: Int, kanali: Int, float32: Boolean): Long {
+        if (odmikBajtov <= 0) return zig
+        val frekvenca = if (hz <= 0) PRIVZETA_FREKVENCA_HZ else hz
+        val vzorcev = (odmikBajtov / velikostVzorca(kanali, float32)).toLong()
+        return zig + vzorcev * 1000L / frekvenca
+    }
+
+    /**
+     * Vrsta zvoka pred AudioTrackom. WRITE_NON_BLOCKING lahko vzame manj, kot ponudimo: ostanek ostane tu
+     * (pregled Z2), ne gre v nic. Ni sinhronizirana: uporablja jo samo nit toka.
+     */
+    class VrstaZvoka {
+        /**
+         * Del okvirja: podatki[od until konec]; [zig] velja za bajt [zacetek] (null = tisina ali brez ziga).
+         * [novOdsek]: od tega kosa naprej zvok ni zvezen s prejsnjim (vrzel, tisina, izpust), zig je treba zapisati znova.
+         */
+        class Kos(val podatki: ByteArray, val zacetek: Int, val konec: Int, val zig: Long?, var novOdsek: Boolean) {
+            var od: Int = zacetek
+        }
+
+        private val kosi = ArrayDeque<Kos>()
+        private var naslednjiNov = true
+
+        /** Bajti, ki se cakajo v vrsti. */
+        var bajtov = 0
+            private set
+
+        fun dodaj(podatki: ByteArray, od: Int, dolzina: Int, zig: Long?, novOdsek: Boolean) {
+            if (dolzina <= 0 || od < 0 || od + dolzina > podatki.size) return
+            kosi.addLast(Kos(podatki, od, od + dolzina, zig, novOdsek || naslednjiNov))
+            naslednjiNov = false
+            bajtov += dolzina
+        }
+
+        /** Naslednji dodani kos zacne nov odsek (npr. za vstavljeno tisino). */
+        fun prekini() {
+            naslednjiNov = true
+        }
+
+        fun prvi(): Kos? = kosi.firstOrNull()
+
+        /** Prvi kos je AudioTrack sprejel za [n] bajtov. */
+        fun porabi(n: Int) {
+            val kos = kosi.firstOrNull() ?: return
+            val vzeto = minOf(maxOf(n, 0), kos.konec - kos.od)
+            kos.od += vzeto
+            bajtov -= vzeto
+            if (kos.od >= kos.konec) kosi.removeFirst()
+        }
+
+        /** Izpusti do [n] najstarejsih bajtov (tudi cez vec kosov); vrne, koliko jih je izpustil. Za izpustom nov odsek. */
+        fun izpusti(n: Int): Int {
+            var ostane = maxOf(n, 0)
+            var izpusceno = 0
+            while (ostane > 0 && kosi.isNotEmpty()) {
+                val kos = kosi.first()
+                val vzeto = minOf(ostane, kos.konec - kos.od)
+                kos.od += vzeto
+                ostane -= vzeto
+                izpusceno += vzeto
+                if (kos.od >= kos.konec) kosi.removeFirst()
+            }
+            bajtov -= izpusceno
+            if (izpusceno > 0) {
+                val glava = kosi.firstOrNull()
+                if (glava != null) glava.novOdsek = true else naslednjiNov = true
+            }
+            return izpusceno
+        }
+
+        fun pocisti() {
+            kosi.clear()
+            bajtov = 0
+            naslednjiNov = true
+        }
+    }
 }

@@ -410,6 +410,8 @@
     <string name="os_zaslon_meni_vecja_vsebina">Larger content</string>
     <string name="os_zaslon_meni_rob_vecji">Larger picture margin</string>
     <string name="os_zaslon_meni_rob_manjsi">Smaller picture margin</string>
+    <string name="os_zaslon_meni_zvok_kasneje">Audio later (now %1$d ms)</string>
+    <string name="os_zaslon_meni_zvok_prej">Audio earlier (now %1$d ms)</string>
     <string name="os_zaslon_meni_manjsa_vsebina">Smaller content</string>
     <string name="os_zaslon_vlecem">Dragging – move the pointer and press OK to drop</string>
     <string name="os_seznanitev_naslov">New device</string>
