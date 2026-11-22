@@ -15,6 +15,9 @@ import java.io.DataInputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import javax.net.ssl.SSLSocket
 
 /**
@@ -109,6 +112,49 @@ class ZaslonOdjemalec(
         Thread(r, "safeer-zaslon-vnos").also { it.isDaemon = true }
     }
 
+    // ---- SAMO MERITEV (zastoj zvoka 4 s): zastavice enkrat na sejo, ponastavljene ob vsaki glavi. ----
+    // Atomic* namesto kljucavnic: izris tece na dveh nitih (tok in izhodna nit), branje nikoli ne caka.
+    private val casSeja = AtomicInteger(0)
+    private val casPrviWrite = AtomicBoolean(false)
+    private val casZvokNeprazen = AtomicBoolean(false)
+    private val casZvokPo5s = AtomicBoolean(false)
+    private val casPrvaVDekoder = AtomicBoolean(false)
+    private val casPrvaPrikazana = AtomicBoolean(false)
+    /** Skupaj ponujeni in sprejeti bajti zvoka (AudioTrack.write vrne sprejete; razlika je izpuscen zvok). */
+    private val casZvokPonujeno = AtomicLong(0)
+    private val casZvokSprejeto = AtomicLong(0)
+    private val casPrviWriteMs = AtomicLong(0)
+
+    /** Ena vrstica na dogodek; elapsedRealtime, ker ga ze uporablja ta razred (zig v dekoderju, statistika). Ne sme vreci. */
+    private fun cas(dogodek: String, dodatno: String = "") {
+        try {
+            Log.i(CAS_TAG, "$CAS_TAG dogodek=$dogodek t_ms=${SystemClock.elapsedRealtime()} " +
+                "wall_ms=${System.currentTimeMillis()} seja=${System.identityHashCode(this)}-${casSeja.get()}" +
+                (if (dodatno.isEmpty()) "" else " $dodatno"))
+        } catch (_: Throwable) { }
+    }
+
+    /** Ponastavi zastavice za novo sejo (klic ob prejeti glavi). */
+    private fun casNovaSeja() {
+        try {
+            casSeja.incrementAndGet()
+            casPrviWrite.set(false); casZvokNeprazen.set(false); casZvokPo5s.set(false)
+            casPrvaVDekoder.set(false); casPrvaPrikazana.set(false)
+            casZvokPonujeno.set(0); casZvokSprejeto.set(0); casPrviWriteMs.set(0)
+        } catch (_: Throwable) { }
+    }
+
+    /** Samo branje stanja AudioTrack za dnevnik; vsaka napaka (stari API) da "?". */
+    private fun casZvocnik(t: AudioTrack?): String {
+        if (t == null) return "zvocnik=null"
+        fun b(f: () -> Any?): String = try { f().toString() } catch (_: Throwable) { "?" }
+        return "buffer_frames=" + b { if (Build.VERSION.SDK_INT >= 23) t.bufferSizeInFrames else "n/a" } +
+            " start_prag_frames=" + b { if (Build.VERSION.SDK_INT >= 31) t.startThresholdInFrames else "n/a" } +
+            " play_state=" + b { t.playState } +
+            " glava_predvajanja=" + b { t.playbackHeadPosition } +
+            " podtekov=" + b { if (Build.VERSION.SDK_INT >= 24) t.underrunCount else "n/a" }
+    }
+
     fun zacni(surface: Surface) {
         if (tece) return
         tece = true
@@ -188,6 +234,9 @@ class ZaslonOdjemalec(
             // Glava pride takoj, ko racunalnik gledalca sprejme; brez roka bi nema povezava visela v nedogled.
             s.soTimeout = TISINA_MS
             val glava = JSONObject(preberiVrstico(vhod))
+            casNovaSeja()
+            cas("glava_prejeta", "zvok=" + (try { if (glava.optJSONObject("zvok") != null) 1 else 0 } catch (_: Throwable) { "?" }) +
+                " prek_huba=" + (if (prekHuba) 1 else 0))
             val sirina = glava.optInt("w", 1920)
             val visina = glava.optInt("h", 1080)
             val fps = glava.optInt("fps", 30)
@@ -311,7 +360,12 @@ class ZaslonOdjemalec(
                 .setChannelMask(razpored).build())
             .setBufferSizeInBytes(velikost)
             .setTransferMode(AudioTrack.MODE_STREAM)
-            .build().also { it.play(); Log.i(TAG, "Zvok: $hz Hz, $kanali kanala, medpomnilnik $velikost B") }
+            .build().also {
+                cas("audiotrack_ustvarjen", "min_buffer_b=$najmanj velikost_b=$velikost hz=$hz kanali=$kanaliZvoka " + casZvocnik(it))
+                it.play()
+                cas("play", "bajti_zapisano=${casZvokSprejeto.get()} " + casZvocnik(it))
+                Log.i(TAG, "Zvok: $hz Hz, $kanali kanala, medpomnilnik $velikost B")
+            }
     } catch (e: Throwable) {
         Log.w(TAG, "Zvoka ni bilo mogoce pripraviti: ${e.message}")
         null
@@ -350,7 +404,27 @@ class ZaslonOdjemalec(
             bajtov += dolzina + glava.size
             if (vrsta == OKVIR_ZVOK) {
                 imelZvok = true
-                try { zvocnik?.write(telo, 0, dolzina, AudioTrack.WRITE_NON_BLOCKING) } catch (_: Throwable) { }
+                try {
+                    val sprejeto = zvocnik?.write(telo, 0, dolzina, AudioTrack.WRITE_NON_BLOCKING)
+                    // Meritev (samo branje vrnjene vrednosti in stevci za dnevnik).
+                    try {
+                        val ponujenoSkupaj = casZvokPonujeno.addAndGet(dolzina.toLong())
+                        val sprejetoSkupaj = casZvokSprejeto.addAndGet(maxOf(sprejeto ?: 0, 0).toLong())
+                        if (casPrviWrite.compareAndSet(false, true)) {
+                            casPrviWriteMs.set(SystemClock.elapsedRealtime())
+                            cas("prvi_write", "bajti=$dolzina sprejeto=$sprejeto ponujeno_skupaj=$ponujenoSkupaj " +
+                                "sprejeto_skupaj=$sprejetoSkupaj " + casZvocnik(zvocnik))
+                        }
+                        if (!casZvokNeprazen.get() && telo.any { it != 0.toByte() } && casZvokNeprazen.compareAndSet(false, true)) {
+                            cas("prvi_zvok_neprazen", "ponujeno_skupaj=$ponujenoSkupaj sprejeto_skupaj=$sprejetoSkupaj")
+                        }
+                        if (!casZvokPo5s.get() && SystemClock.elapsedRealtime() - casPrviWriteMs.get() >= 5000 &&
+                            casZvokPo5s.compareAndSet(false, true)) {
+                            // Realni cas: ~960000 B v 5 s; ponujeno >> sprejeto = TV izpusca (sunek zaostanka).
+                            cas("zvok_po_5s", "ponujeno_skupaj=$ponujenoSkupaj sprejeto_skupaj=$sprejetoSkupaj " + casZvocnik(zvocnik))
+                        }
+                    } catch (_: Throwable) { }
+                } catch (_: Throwable) { }
                 continue
             }
             if (vrsta == OKVIR_OBVESTILO) {
@@ -445,7 +519,10 @@ class ZaslonOdjemalec(
                 slikVen++
                 vsotaZakasnitev += zadnjaZakasnitev
             }
+            // Meritev: prva prava slika (ne nastavitve), poslana na zaslon z render=true.
+            val casPrava = info.size > 0 && (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == 0
             kodek.releaseOutputBuffer(i, true)
+            if (casPrava && casPrvaPrikazana.compareAndSet(false, true)) cas("prva_slika_prikazana", "velikost=${info.size}")
             slik++
             imaSliko = true
             if (zadnjaSlika != 0L && zdajSlika - zadnjaSlika > ZASTOJ_MS) zastojev++
@@ -481,6 +558,8 @@ class ZaslonOdjemalec(
         val zastavice = if (ZaslonKodek.jeNastavitev(hevc, vrsta)) MediaCodec.BUFFER_FLAG_CODEC_CONFIG else 0
         // Cas oddaje uporabimo kot zig: ob izhodu iz dekoderja iz njega izracunamo zakasnitev.
         kodek.queueInputBuffer(i, 0, dolzina, SystemClock.elapsedRealtime() * 1000, zastavice)
+        // Meritev: prva enota slike (ne nastavitve) v dekoderju.
+        if (zastavice == 0 && casPrvaVDekoder.compareAndSet(false, true)) cas("prva_slika_v_dekoder", "bajti=$dolzina nal=$vrsta")
         if (zastavice == 0) slikNoter++
         if (hevc && !imaSliko) poslanihSlik++
     }
@@ -535,6 +614,8 @@ class ZaslonOdjemalec(
         /** Presledek med zaporednima slikama, ki ga oko pri 60 slikah na sekundo ze zazna kot zatik. */
         const val ZASTOJ_MS = 50L
         const val TAG = "SafeerOsZaslon"
+        /** Oznaka merilnega dnevnika (zastoj zvoka 4 s): adb logcat -s SafeerZaslonCas. */
+        const val CAS_TAG = "SafeerZaslonCas"
         /** Vrsti okvirjev; morata biti enaki kot v core/link_zaslon.py. */
         const val OKVIR_SLIKA = 1
         const val OKVIR_ZVOK = 2
