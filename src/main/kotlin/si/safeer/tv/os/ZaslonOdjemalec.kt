@@ -68,7 +68,11 @@ class ZaslonOdjemalec(
     data class Statistika(val slik: Int, val naSekundo: Double, val megabitov: Double,
                           val dekoderMs: Long, val sirina: Int, val visina: Int, val zvok: Boolean,
                           /** Koliko presledkov med zaporednima slikama je bilo v tem obdobju daljsih od [ZASTOJ_MS]. */
-                          val zastojev: Int = 0)
+                          val zastojev: Int = 0,
+                          /** Najvec slik, ki so bile v dekoderju, ko je prisla ven naslednja (1 = zadrzi eno sliko; meritev). */
+                          val vDekoderju: Int = 0,
+                          /** Povprecni cas slike v dekoderju v tem obdobju (ms); [dekoderMs] je samo zadnja slika. */
+                          val dekoderPovpMs: Double = 0.0)
 
     @Volatile private var tece = false
     /** Kodek toka, kot ga pove racunalnik v glavi (`kodek`): HEVC ali (privzeto, starejsi Safeer) H.264. */
@@ -84,6 +88,11 @@ class ZaslonOdjemalec(
     private var zastojev = 0
     private var zadnjaSlika = 0L
     private var zadnjaZakasnitev = 0L
+    /** Meritev dekoderja (22. 11. 2026): slike noter/ven, najvec hkrati v dekoderju, vsota casov za povprecje. */
+    private var slikNoter = 0L
+    private var slikVen = 0L
+    private var najvecVDekoderju = 0
+    private var vsotaZakasnitev = 0L
     /** Enote z nastavitvami HEVC, ki cakajo na sliko, s katero gredo skupaj v dekoder. */
     private var predSliko = ByteArray(0)
     /** Slike HEVC, poslane v dekoder, preden je vrnil prvo: dekoder, ki ne vrne nobene, toka ne zna. */
@@ -267,6 +276,14 @@ class ZaslonOdjemalec(
         }
         kodek.start()
         Log.i(TAG, "Dekoder: ${kodek.name} za ${sirina}x$visina@$fps")
+        // Meritev: ali je dekoder nastavitve nizke zakasnitve res sprejel (neznane kljuce tiho zavrze).
+        try {
+            val f = kodek.inputFormat
+            val sprejeto = listOf("low-latency", "vdec-lowlatency", "vendor.low-latency.enable").joinToString(" ") { k ->
+                "$k=" + (if (f.containsKey(k)) try { f.getInteger(k).toString() } catch (_: Throwable) { "?" } else "-")
+            }
+            Log.i(TAG, "Dekoder sprejel: $sprejeto")
+        } catch (_: Throwable) { }
         return kodek
     }
 
@@ -307,6 +324,7 @@ class ZaslonOdjemalec(
         var zadnjePorocilo = SystemClock.elapsedRealtime()
         var imelZvok = false
         slik = 0; zastojev = 0; zadnjaSlika = 0L; zadnjaZakasnitev = 0L; predSliko = ByteArray(0); poslanihSlik = 0
+        slikNoter = 0L; slikVen = 0L; najvecVDekoderju = 0; vsotaZakasnitev = 0L
         // Cele slike (H.264): izhod dekoderja prazni svoja nit, ki na dekoder caka - sicer slika, ki se dekodira
         // dlje od trenutka branja, pride na zaslon sele ob naslednjem okvirju z omrezja (izmerjeno ~50 ms).
         val izhodnaNit = if (celeSlike && !hevc) Thread({
@@ -361,7 +379,9 @@ class ZaslonOdjemalec(
                 if (zdajC - zadnjePorocilo >= 1000) {
                     val sekunde = (zdajC - zadnjePorocilo) / 1000.0
                     naStatistiko(Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
-                        zadnjaZakasnitev, sirina, visina, imelZvok, zastojev))
+                        zadnjaZakasnitev, sirina, visina, imelZvok, zastojev, najvecVDekoderju,
+                        if (slik > 0) vsotaZakasnitev.toDouble() / slik else 0.0))
+                    najvecVDekoderju = 0; vsotaZakasnitev = 0L
                     slik = 0; bajtov = 0; zadnjePorocilo = zdajC; imelZvok = false; zastojev = 0
                 }
                 continue
@@ -392,7 +412,9 @@ class ZaslonOdjemalec(
             if (zdaj - zadnjePorocilo >= 1000) {
                 val sekunde = (zdaj - zadnjePorocilo) / 1000.0
                 naStatistiko(Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
-                    zadnjaZakasnitev, sirina, visina, imelZvok, zastojev))
+                    zadnjaZakasnitev, sirina, visina, imelZvok, zastojev, najvecVDekoderju,
+                    if (slik > 0) vsotaZakasnitev.toDouble() / slik else 0.0))
+                najvecVDekoderju = 0; vsotaZakasnitev = 0L
                 slik = 0; bajtov = 0; zadnjePorocilo = zdaj; imelZvok = false; zastojev = 0
             }
         }
@@ -411,6 +433,12 @@ class ZaslonOdjemalec(
             if (i < 0) break
             val zdajSlika = SystemClock.elapsedRealtime()
             zadnjaZakasnitev = zdajSlika - info.presentationTimeUs / 1000
+            if (info.size > 0 && (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == 0) {
+                // Koliko slik je bilo v dekoderju, ko je ta prisla ven (vkljucno z njo): 1 = brez zadrzevanja.
+                najvecVDekoderju = maxOf(najvecVDekoderju, (slikNoter - slikVen).toInt())
+                slikVen++
+                vsotaZakasnitev += zadnjaZakasnitev
+            }
             kodek.releaseOutputBuffer(i, true)
             slik++
             imaSliko = true
@@ -447,6 +475,7 @@ class ZaslonOdjemalec(
         val zastavice = if (ZaslonKodek.jeNastavitev(hevc, vrsta)) MediaCodec.BUFFER_FLAG_CODEC_CONFIG else 0
         // Cas oddaje uporabimo kot zig: ob izhodu iz dekoderja iz njega izracunamo zakasnitev.
         kodek.queueInputBuffer(i, 0, dolzina, SystemClock.elapsedRealtime() * 1000, zastavice)
+        if (zastavice == 0) slikNoter++
         if (hevc && !imaSliko) poslanihSlik++
     }
 
