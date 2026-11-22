@@ -132,6 +132,11 @@ class ZaslonOdjemalec(
     private var zigSlike: Long? = null
     /** Kljuc vhoda v dekoder (elapsedRealtime v us) -> zig zajema; bere jo tudi nit prikaza. */
     private val zigiSlik = ZaslonSinhro.ZigTabela()
+    /** Brez "au": zig prve rezine slike, ki caka v ostanku (ZaslonSinhro.ZigEnote). */
+    private val zigEnote = ZaslonSinhro.ZigEnote()
+    /** Seja brez "au": pts enot strogo narasca (ZaslonSinhro.enolicenPts); z "au" kot prej. */
+    private var brezAu = false
+    private var zadnjiPtsUs = 0L
     /** Zapisan okvir zvoka (zacetek odseka) -> zig zajema. */
     private val odsekiZvoka = ZaslonSinhro.ZigTabela()
     private var zadnjiOdsekOkvir = 0L
@@ -760,6 +765,7 @@ class ZaslonOdjemalec(
         // Sinhro in kljucni okvir od zacetka seje (isti odjemalec lahko tece veckrat).
         cakaZigSlike = null; cakaZigZvoka = null; prejetoSlike = 0L; prejetoZvoka = 0L; zigSlike = null
         zigiSlik.ponastavi(); odsekiZvoka.ponastavi(); zadnjiOdsekOkvir = 0L; prejZigZvoka = null; prejBajtZvoka = 0L
+        zigEnote.pocisti(); brezAu = !celeSlike; zadnjiPtsUs = 0L
         krmilnik.ponastavi(); vrstaZvoka.pocisti(); uveljavljenZamikMs = 0L; zamikSlikeMs = 0L
         zapisanihOkvirjev = 0L; podtokovPrej = 0; obnovZvoka = 0
         synchronized(zaklepPrikaza) { prikazNov = false }
@@ -819,7 +825,8 @@ class ZaslonOdjemalec(
                 continue
             }
             if (vrsta != OKVIR_SLIKA) continue
-            // Zig slike pripisemo samo celim slikam: brez "au" zadnja enota caka na naslednji okvir (N3).
+            // Z "au" zig velja za ves okvir (cela slika). Brez "au" ga ZigEnote da prvi rezini slike z meje tega
+            // okvirja, ko gre v dekoder: zadnja enota caka na naslednjo zacetno kodo (N3).
             val zigS = vzemiZig(OKVIR_SLIKA, dolzina)
             zigSlike = if (celeSlike) zigS?.zigMs else null
             preveriZastoj()
@@ -846,11 +853,15 @@ class ZaslonOdjemalec(
                 }
                 continue
             }
+            val prejOstanek = ostanek.size
             ostanek = ZaslonOstanek.dodaj(ostanek, telo)
+            val meja = ostanek.size - telo.size
+            if (!celeSlike) zigEnote.okvir(zigS?.zigMs, meja, meja == prejOstanek)
             var od = zacetekNal(ostanek, 0)
-            if (od < 0) continue
+            if (od < 0) { zigEnote.pocisti(); continue }
             var naslednji = zacetekNal(ostanek, od + 3)
             while (naslednji > 0) {
+                if (!celeSlike) zigSlike = zigEnote.za(od, naslednji, ZaslonKodek.jeRezina(hevc, vrstaNal(ostanek, od)))
                 posljiNal(kodek, ostanek, od, naslednji)
                 od = naslednji
                 naslednji = zacetekNal(ostanek, od + 3)
@@ -859,7 +870,10 @@ class ZaslonOdjemalec(
                 posljiNal(kodek, ostanek, od, ostanek.size)    // okvir je cela slika: zadnja enota ne caka
                 ostanek = ByteArray(0)
             } else {
+                // Zig velja samo za enoto, ki ga je dobila v za(); cakajoca enota ga nosi v ZigEnote.
+                zigSlike = null
                 ostanek = ostanek.copyOfRange(od, ostanek.size)   // zacetek naslednje enote
+                zigEnote.odrezi(od)
             }
             izprazni(kodek)
             if (ZaslonKodek.hevcBrezSlike(hevc, poslanihSlik, imaSliko)) {
@@ -947,7 +961,9 @@ class ZaslonOdjemalec(
         medpomnilnik.put(vir, od, do_ - od)
         // Kljuc za zig in kljucno sliko: pts v naslednji vrstici je ista ura, prebrana tik za tem (enak ali +1 ms).
         // Ena sama prebrana ura: pts in kljuc za zig / kljucno sliko sta vedno enaka.
-        val ptsUs = SystemClock.elapsedRealtime() * 1000
+        val zdajUs = SystemClock.elapsedRealtime() * 1000
+        val ptsUs = if (brezAu) ZaslonSinhro.enolicenPts(zdajUs, zadnjiPtsUs) else zdajUs
+        zadnjiPtsUs = ptsUs
         if (!ZaslonKodek.jeNastavitev(hevc, vrsta)) {
             val zig = zigSlike
             if (zig != null) zigiSlik.dodaj(ptsUs, zig)

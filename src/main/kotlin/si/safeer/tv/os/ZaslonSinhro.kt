@@ -244,6 +244,69 @@ object ZaslonSinhro {
     /** Pts izhoda iz dekoderja ustreza kljucu [kljucUs], ki je bil prebran najvec 1 ms pred oddajo v dekoder. */
     fun ujemaPts(ptsUs: Long, kljucUs: Long): Boolean = ptsUs - kljucUs in 0L..1000L
 
+    /**
+     * Pts enote brez "au": strogo narascajoc, da rezina z zigom ne deli kljuca s koncem prejsnje slike, poslanim v
+     * isti ms (sicer bi izris prejsnje slike lahko nasel ta zig). Premik je nekaj us, pod 1 ms.
+     */
+    fun enolicenPts(zdajUs: Long, zadnjiUs: Long): Long = if (zdajUs > zadnjiUs) zdajUs else zadnjiUs + 1
+
+    /**
+     * Zig slike brez "au" (Linux): okvir 4 pride samo pred okvirjem, ki se zacne z zacetno kodo nove slike
+     * (ZigiSlike v link_zaslon.py), enota pa gre v dekoder sele z naslednjo zacetno kodo, lahko sele v poznejsem
+     * okvirju. Zato zig hranimo z odmikom enote v ostanku in ga damo samo prvi rezini te slike: ne zadnji enoti
+     * prejsnje slike in ne naslednji sliki.
+     */
+    class ZigEnote {
+        // [0] = enota, ki caka na zacetku ostanka; [1] = enota na meji zadnjega okvirja.
+        private val odmiki = intArrayOf(-1, -1)
+        private val zigi = LongArray(2)
+
+        /** Nov okvir slike: telo je v ostanku od [meja]; [ohranjen] = prejsnji ostanek ni odpadel (ZaslonOstanek). */
+        fun okvir(zig: Long?, meja: Int, ohranjen: Boolean) {
+            // Odpadel ostanek je odnesel tudi cakajoco enoto: njen zig ne sme na drugo.
+            if (!ohranjen) pocisti()
+            odmiki[1] = -1
+            if (zig == null || meja < 0) return
+            odmiki[1] = meja
+            zigi[1] = zig
+        }
+
+        /**
+         * Zig za enoto od [od] do [do_], ki gre zdaj v dekoder, ali null; zig se porabi. Enota brez slike
+         * ([rezina] = false: SPS, PPS, SEI, AUD) ga preda naslednji enoti, ki je po meji oddajnika ista slika.
+         */
+        fun za(od: Int, do_: Int, rezina: Boolean): Long? {
+            if (od < 0) return null
+            for (k in 0..1) {
+                if (odmiki[k] != od) continue
+                if (rezina) {
+                    odmiki[k] = -1
+                    return zigi[k]
+                }
+                // Naslednja enota ima svoj zig (nova slika): starega ne prenesemo nanjo.
+                odmiki[k] = if (odmiki[1 - k] == do_) -1 else do_
+                return null
+            }
+            return null
+        }
+
+        /** Ostanek odrezan pri [od]: ostane samo zig enote, ki se zacne tam (zdaj odmik 0); drugi odpadejo. */
+        fun odrezi(od: Int) {
+            val k = if (od < 0) -1 else if (odmiki[0] == od) 0 else if (odmiki[1] == od) 1 else -1
+            val zig = if (k >= 0) zigi[k] else 0L
+            pocisti()
+            if (k >= 0) {
+                odmiki[0] = 0
+                zigi[0] = zig
+            }
+        }
+
+        fun pocisti() {
+            odmiki[0] = -1
+            odmiki[1] = -1
+        }
+    }
+
     /** Zastoj slike: slike gredo v dekoder, ven pa nic ze [ZASTOJ_ZA_KLJUCNI_MS]. */
     fun jeZastojSlike(zdajMs: Long, zadnjiIzhodMs: Long, slikVDekoderju: Long): Boolean =
         slikVDekoderju >= ZASTOJ_SLIK_V_DEKODERJU && zdajMs - zadnjiIzhodMs >= ZASTOJ_ZA_KLJUCNI_MS

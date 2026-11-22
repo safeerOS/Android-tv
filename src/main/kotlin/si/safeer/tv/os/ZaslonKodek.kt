@@ -21,6 +21,12 @@ object ZaslonKodek {
     /** H.264: SPS (7) in PPS (8) gresta v dekoder oznacena kot nastavitev. Pri HEVC gredo nastavitve s sliko. */
     fun jeNastavitev(hevc: Boolean, vrsta: Int): Boolean = !hevc && (vrsta == 7 || vrsta == 8)
 
+    /**
+     * Rezina: enota, iz katere dekoder naredi sliko. H.264 samo 1 in 5 (enako kot ZigiSlike v link_zaslon.py),
+     * HEVC VCL 0-31. Zig slike brez "au" gre na prvo rezino, ker SPS/PPS/SEI/AUD pred njo slike nimajo.
+     */
+    fun jeRezina(hevc: Boolean, vrsta: Int): Boolean = if (hevc) vrsta in 0..31 else vrsta == 1 || vrsta == 5
+
     /** Toliko slik HEVC sme dekoder dobiti, ne da bi vrnil eno samo, preden recemo, da tega toka ne zna. */
     const val SLIK_BREZ_IZHODA = 60
 
