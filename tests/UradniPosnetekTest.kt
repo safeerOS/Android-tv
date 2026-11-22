@@ -32,6 +32,12 @@ fun main() {
     // Skladba, ki sama vsebuje »live«, ni kaznovana.
     val zivo = Zadetek("z", "Nirvana - Live Forever", "Nirvana", 200)
     preveriUradni("naslov z live ni rdeca zastavica", U.izberi(listOf(zivo), "Live Forever", "Nirvana", 200) == "z")
+    // Najdbe CodeRabbit 22. 11. 2026 (isti primeri kot Linux tests/test_uradni_posnetek.py).
+    preveriUradni("cirilica ostane", U.ravno("Кино") == "кино" && U.jeKanalIzvajalca("Кино", "Кино"))
+    preveriUradni("one ni v stone", U.izberi(listOf(Zadetek("s", "Queen - Stone Cold Crazy (Official Video)", "Queen", 140)), "One", "Queen", 140) == null)
+    preveriUradni("metallica one", U.izberi(listOf(Zadetek("o", "Metallica - One (Official Music Video)", "Metallica", 446)), "One", "Metallica", 446) == "o")
+    preveriUradni("live dvakrat je koncert", U.izberi(listOf(Zadetek("k", "Paul McCartney - Live and Let Die (Live)", "Paul McCartney", 190)), "Live and Let Die", "Paul McCartney", 190) == null)
+    preveriUradni("remix ne dovoli karaoke", U.izberi(listOf(Zadetek("r", "Nirvana - Lithium (Remix) (Karaoke)", "Nirvana", 257)), "Lithium (Remix)", "Nirvana", 257) == null)
     println(if (napakUradni == 0) "UradniPosnetekTest: VSE V REDU" else "UradniPosnetekTest: $napakUradni napak")
     if (napakUradni > 0) kotlin.system.exitProcess(1)
 }

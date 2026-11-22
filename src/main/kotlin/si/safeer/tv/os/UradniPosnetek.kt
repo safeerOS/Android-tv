@@ -21,9 +21,9 @@ object UradniPosnetek {
     private val ZVOCNI = Regex("""\baudio\b""")
     private val V_OKLEPAJIH = Regex("\\((.*?)\\)|\\[(.*?)\\]")
 
-    /** Male crke brez stresic, samo crke in stevke, en presledek. */
+    /** Male crke brez stresic, samo crke in stevke (tudi necirilske/nelatinske: »Кино«), en presledek. */
     fun ravno(s: String): String = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "").lowercase().replace(Regex("[^a-z0-9]+"), " ").trim()
+        .replace(Regex("\\p{M}+"), "").lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
 
     /** Kot [ravno], a brez oklepajev (»Trevo (Tu) (feat. X)« -> »trevo«). */
     fun golo(s: String): String = ravno(s.replace(V_OKLEPAJIH, " "))
@@ -44,9 +44,12 @@ object UradniPosnetek {
         if (!jeKanalIzvajalca(z.kanal, glavni)) return null
         val iskanNaslov = golo(naslov)
         val golNaslov = golo(z.naslov)
-        if (iskanNaslov.isEmpty() || !golNaslov.contains(iskanNaslov)) return null
+        // Cele besede: »One« ni v »Stone Cold Crazy« (CodeRabbit 22. 11. 2026, isto kot Linux).
+        if (iskanNaslov.isEmpty() || !" $golNaslov ".contains(" $iskanNaslov ")) return null
         val vse = ravno(z.naslov)
-        val rdece = NI_POSNETEK.containsMatchIn(ravno(naslov))
+        // Vsaka oznaka priredbe posebej: oznaka v naslovu skladbe (»Live Forever«) dovoli samo sebe, ne vseh drugih;
+        // »Live and Let Die (Live)« ima »live« enkrat vec kot skladba - koncert (CodeRabbit 22. 11. 2026).
+        val dovoljeno = oznake(ravno(naslov))
         var o = 0
         // »Izvajalec - Naslov (Official Video)« brez izvajalca je natancno ime skladbe.
         if (golNaslov.replace(golo(glavni), "").trim() == iskanNaslov) o += 2
@@ -55,7 +58,7 @@ object UradniPosnetek {
             o += when { razlika <= 10 -> 3; razlika <= 30 -> 1; razlika > 90 -> -2; else -> 0 }
         }
         // Koncert, priredba ali remix je drug posnetek (ne le slabsi): ce skladba sama tega ni, zadetek ne pride v postev.
-        if (!rdece && NI_POSNETEK.containsMatchIn(vse)) return null
+        if (oznake(vse).any { (k, n) -> n > (dovoljeno[k] ?: 0) }) return null
         if (URADNI_VIDEO.containsMatchIn(vse)) o += 3
         // Zvocni nalozek je mirujoca slika: dopusten, a pravi videospot ga premaga.
         if (ZVOCNI.containsMatchIn(vse)) o -= 1
@@ -65,6 +68,8 @@ object UradniPosnetek {
         }
         return o
     }
+
+    private fun oznake(s: String): Map<String, Int> = NI_POSNETEK.findAll(s).groupingBy { it.groupValues[1] }.eachCount()
 
     /** Id najboljsega zadetka (med prvimi 10) ali null; pri enakem izidu ostane prvi zadetek. */
     fun izberi(zadetki: List<Zadetek>, naslov: String, izvajalec: String, sekund: Int): String? {
