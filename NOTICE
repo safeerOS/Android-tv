@@ -26,7 +26,8 @@ Vgrajeni katalog filmov in serij uporablja TMDB in API-je TMDB, vendar ga TMDB
 ne podpira, ne potrjuje in ne odobrava (This product uses TMDB and the TMDB APIs
 but is not endorsed, certified, or otherwise approved by TMDB). Podatki TMDB se
 ne dajo umetni inteligenci (Lina, agent). Brezplacna raba samo za nekomercialne
-namene.
+namene: ta del velja samo za nekomercialno rabo in ga komercialna licenca ne pokriva
+(glej COMMERCIAL-LICENSE.md).
 
 Zamisli iz odprtih projektov
 ----------------------------

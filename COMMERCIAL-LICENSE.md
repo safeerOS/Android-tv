@@ -15,3 +15,5 @@ Third-party components (for example Qt, pdf.js, rqbit, WebKit) keep their own li
 pdf.js, rqbit, WebKit) ostanejo pod svojimi licencami. The add-on SDK and its templates stay Apache-2.0 so add-on
 authors are not bound by the AGPL. / SDK za dodatke in njegove predloge ostanejo Apache-2.0, da AGPL ne veže
 avtorjev dodatkov.
+
+**TMDB.** The built-in film and series catalogue uses TMDB data under TMDB's terms, which allow free use for non-commercial purposes only. That part is therefore non-commercial only and is not covered by the commercial licence: a commercial build must not include a TMDB key (without a key the catalogue is simply not offered, build.gradle). / **TMDB.** Vgrajeni katalog filmov in serij uporablja podatke TMDB po pogojih TMDB, ki dovoljujejo brezplačno rabo samo za nekomercialne namene. Ta del zato velja samo za nekomercialno rabo in ga komercialna licenca ne pokriva: komercialna gradnja ne sme vsebovati ključa TMDB (brez ključa se katalog preprosto ne ponudi, build.gradle).
