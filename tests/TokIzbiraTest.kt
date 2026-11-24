@@ -158,5 +158,17 @@ fun main() {
     val navaden = TokIzbira.uredi(listOf("A 1080p x265 0.9 GB", "B 1080p x264 1.5 GB"), { it }, tablica)
     check(navaden.first() == "A 1080p x265 0.9 GB") { "navaden (8-bitni) HEVC ostane prvi tudi brez Main10: $navaden" }
     check(TokIzbira.Zmoznosti().hevc10) { "privzeto (brez podatka) kot doslej: Main10 velja" }
+    // 24. 11. 2026 Torrentio (Night of the Living Dead): ruski »VO« in zastavice niso izvirnik; neoznacena YTS 1080p prva.
+    val ru = "Ночь живых мертвецов / Night of the Living Dead [1968 BDRemux 1080p] DVO (Film Prestige) + VO (Tycoon) 👤 100 🇬🇧 / 🇷🇺"
+    check(TokIzbira.jezikZvoka("Film 1080p VO (Tycoon)") == "")
+    check(TokIzbira.jezikZvoka(ru) == "vec")
+    check(TokIzbira.jezikZvoka("Film 1080p 🇷🇺") == "ru")
+    check(TokIzbira.jezikZvoka("Film 1080p 🇯🇵") == "ja" && TokIzbira.tockeJezika("Film 1080p 🇯🇵", "en", "ja") == 0)
+    check(TokIzbira.jezikZvoka("Film 1080p 🇦🇶") == "zastava:AQ")
+    check(TokIzbira.jezikZvoka("Film 1080p ENG 🇬🇧") == "en")
+    check(TokIzbira.jezikZvoka("Film.VOSTFR.1080p") == "izvirnik")
+    val yts = "Night of the Living Dead 1968 1080p BluRay 👤 100 YTS"
+    for (seznam in listOf(listOf(ru, yts), listOf("Ночь / Night [1968 1080p BDRip] 👤 100 🇬🇧 / 🇷🇺", yts), listOf("Film Subbed 720p 👤 100", yts)))
+        check(TokIzbira.uredi(seznam, { it }, TokIzbira.Zmoznosti(visina = 1080), zelenJezik = "en", izvirni = "en")[0] == yts)
     println("TokIzbiraTest: OK")
 }

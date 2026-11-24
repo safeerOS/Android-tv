@@ -50,7 +50,24 @@ object TokIzbira {
 
     // Jezik zvoka iz imena toka (lastnik, 10. 10. 2026: privzeto anglescina, pri slovenskih filmih slovenscina).
     private val Z_VEC = Regex("dual[ .-]?(audio|áudio)|\\bdual\\b|multi[ .-]?(audio|lang)|\\bmulti\\b")
-    private val Z_IZVIRNIK = Regex("legendad|\\(l\\)|\\bleg\\b|subbed|\\bvose\\b|vostfr|\\bvo\\b|original audio|audio original|izvirn")
+    // »VO« sam ni izvirnik: v ruskih izdajah (DVO, MVO, AVO, VO) pomeni glas cez izvirnik (24. 11. 2026, Torrentio).
+    private val Z_IZVIRNIK = Regex("legendad|\\(l\\)|\\bleg\\b|subbed|\\bvose\\b|vostfr|original audio|audio original|izvirn")
+    // Dogovor dodatkov, pri katerih je tok BREZ oznake sinhronizacija (brazilski »(L) Legendado«); samo ta oznaka
+    // premakne neoznacene tokove na -800 (enako kot Linux core/tok_izbira.py).
+    private val Z_LEGENDADO = Regex("legendad|\\(l\\)|\\bleg\\b")
+    // Zastavice jezika (Torrentio, Comet ...): par regionalnih znakov; drzava -> jezik zvoka.
+    private val Z_ZASTAVA = Regex("[\\x{1F1E6}-\\x{1F1FF}]{2}")
+    private val ZASTAVE = mapOf("GB" to "en", "US" to "en", "RU" to "ru", "UA" to "uk", "BR" to "pt", "PT" to "pt",
+        "ES" to "es", "MX" to "es", "IT" to "it", "FR" to "fr", "DE" to "de", "IN" to "hi", "SI" to "sl",
+        "JP" to "ja", "KR" to "ko", "CN" to "zh", "TW" to "zh", "NL" to "nl", "PL" to "pl", "TR" to "tr", "SE" to "sv", "DK" to "da", "NO" to "no", "FI" to "fi", "CZ" to "cs", "HU" to "hu", "HR" to "hr", "RS" to "sr", "GR" to "el", "IL" to "he", "SA" to "ar", "TH" to "th", "VN" to "vi", "ID" to "id")
+
+    private fun jezikZastave(z: String): String {
+        val koda = buildString {
+            var i = 0
+            while (i < z.length) { val cp = z.codePointAt(i); append(('A'.code + cp - 0x1F1E6).toChar()); i += Character.charCount(cp) }
+        }
+        return ZASTAVE[koda] ?: "zastava:$koda"
+    }
     private val Z_JEZIKI = listOf(
         "en" to Regex("\\beng(lish)?\\b|ingl[eê]s"),
         "pt" to Regex("dublad|portugu[eê]s|\\bpt[ .-]?br\\b|\\bnacional\\b"),
@@ -74,7 +91,8 @@ object TokIzbira {
         val t = besedilo.lowercase()
         if (Z_VEC.containsMatchIn(t)) return "vec"
         if (Z_IZVIRNIK.containsMatchIn(t)) return "izvirnik"
-        val najdeni = Z_JEZIKI.filter { it.second.containsMatchIn(t) }.map { it.first }
+        val najdeni = Z_JEZIKI.filter { it.second.containsMatchIn(t) }.map { it.first }.toMutableList()
+        for (m in Z_ZASTAVA.findAll(t)) { val k = jezikZastave(m.value); if (k !in najdeni) najdeni.add(k) }
         if (najdeni.size >= 2) return "vec"
         if (najdeni.size == 1) return najdeni[0]
         return if (Z_SINHRONIZACIJA.containsMatchIn(t)) "sinhronizacija" else ""
@@ -232,7 +250,7 @@ object TokIzbira {
     fun <T> uredi(tokovi: List<T>, besedilo: (T) -> String, z: Zmoznosti, naslov: ((T) -> String)? = null,
                   zdajS: Long = System.currentTimeMillis() / 1000, zelenJezik: String = "", izvirni: String = "",
                   roj: (T) -> Boolean = { true }): List<T> {
-        val izvirnikOznacen = zelenJezik.isNotBlank() && tokovi.any { jezikZvoka(besedilo(it)) == "izvirnik" }
+        val izvirnikOznacen = zelenJezik.isNotBlank() && tokovi.any { Z_LEGENDADO.containsMatchIn(besedilo(it).lowercase()) }
         return tokovi.mapIndexed { i, t -> Triple(t, ocena(besedilo(t), z, naslov?.let { veljaSe(it(t), zdajS) }, zelenJezik, izvirni,
             izvirnikOznacen, roj(t)), i) }
             .sortedWith(compareBy<Triple<T, Int, Int>> { razredSejalcev(besedilo(it.first), roj(it.first)) }.thenByDescending { it.second }
