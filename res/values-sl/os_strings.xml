@@ -354,6 +354,7 @@
     <string name="os_zaslon_pot_neposredno">neposredno</string>
     <string name="os_zaslon_pot_global">prek Global Linka</string>
     <string name="os_zaslon_meni_koncaj">Končaj sejo</string>
+    <string name="os_zaslon_meni_nazaj">Nazaj (na računalniku)</string>
     <string name="os_bliznjica_shrani">Shrani</string>
     <string name="os_bliznjica_shrani_kot">Shrani kot</string>
     <string name="os_bliznjica_izberi_vse">Izberi vse</string>

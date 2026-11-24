@@ -1023,8 +1023,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (predvajalnik && predvajalnikPas.jeViden && event != null && !event.isLongPress) {
                 predvajalnikPas.skrij(); return true
             }
-            if (event != null && !event.isCanceled && !event.isLongPress) {
-                poslji(org.json.JSONObject().put("vrsta", "tipka").put("tipka", "nazaj"))
+            // isTracking: pritisk, ki je zaprl tipkovnico (onKeyDown brez startTracking), ne gre se racunalniku.
+            if (event != null && event.isTracking && !event.isCanceled && !event.isLongPress) {
+                // Telefon in tablica (24. 11. 2026): sistemski Nazaj ali kretnja pricakuje izhod, dolgega pritiska
+                // kretnja nima - zato odpre meni seje (Koncaj sejo, Nazaj na racunalniku). Daljinec TV: tipka racunalniku.
+                if (naDotik()) odpriMeni()
+                else poslji(org.json.JSONObject().put("vrsta", "tipka").put("tipka", "nazaj"))
             }
             return true
         }
@@ -1063,6 +1067,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (naDrugem) dejanja.add(getString(R.string.os_zaslon_naslednji) to { posljiTipko("preklopi_okno") })
         else dejanja.add(getString(R.string.os_zaslon_meni_start) to { posljiTipko("domov") })
         dejanja.add(getString(R.string.os_zaslon_meni_tipkovnica) to { odpriTipkovnico() })
+        if (naDotik()) dejanja.add(getString(R.string.os_zaslon_meni_nazaj) to { posljiTipko("nazaj") })
         if (naDrugem && fokusPodprt) {
             dejanja.add(getString(if (vlecem) R.string.os_zaslon_meni_spusti else R.string.os_zaslon_meni_vleci) to
                 { preklopiVlecenje() })

@@ -342,6 +342,7 @@
     <string name="os_zaslon_pot_neposredno">diretta</string>
     <string name="os_zaslon_pot_global">tramite Global Link</string>
     <string name="os_zaslon_meni_koncaj">Termina la sessione</string>
+    <string name="os_zaslon_meni_nazaj">Indietro (sul computer)</string>
     <string name="os_bliznjica_shrani">Salva</string>
     <string name="os_bliznjica_shrani_kot">Salva con nome</string>
     <string name="os_bliznjica_izberi_vse">Seleziona tutto</string>

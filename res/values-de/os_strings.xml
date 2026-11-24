@@ -342,6 +342,7 @@
     <string name="os_zaslon_pot_neposredno">direkt</string>
     <string name="os_zaslon_pot_global">über Global Link</string>
     <string name="os_zaslon_meni_koncaj">Sitzung beenden</string>
+    <string name="os_zaslon_meni_nazaj">Zurück (am Computer)</string>
     <string name="os_bliznjica_shrani">Speichern</string>
     <string name="os_bliznjica_shrani_kot">Speichern unter</string>
     <string name="os_bliznjica_izberi_vse">Alles auswählen</string>
