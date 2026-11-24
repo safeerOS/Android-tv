@@ -55,6 +55,10 @@ object Zmogljivost {
         val bat = baterija(context)
         if (bat != null) p.put("baterija", bat)
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        // Racunalnik na HDMI tega TV ne vidi, da TV spi (HDMI ostane »connected«, DPMS On, brez CEC - izmerjeno 24. 11.
+        // 2026): po tem podatku Safeer OS na Linuxu premakne namizje na zaslon prenosnika. Znamka za ujemanje z EDID.
+        p.put("zaslon", JSONObject().put("prizgan", pm.isInteractive))
+        p.put("znamka", Build.BRAND)
         val varcuje = pm.isPowerSaveMode
         val vroce = Build.VERSION.SDK_INT >= 29 && pm.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE
         val sorodnik = sorodnikZVecjoPrednostjo(context)
