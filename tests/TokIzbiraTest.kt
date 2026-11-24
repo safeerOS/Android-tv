@@ -134,6 +134,11 @@ fun main() {
     check(TokIzbira.tockeJezika("Film FRENCH 1080p", "en", "fr") == 0)
     check(TokIzbira.tockeJezika("Film Hindi 1080p", "en", "fr") == -800)
     check(TokIzbira.tockeJezika("Film Sloven 1080p", "sl", "sl") == 800)
+    // 24. 11. 2026: neoznacena izdaja angleskega filma ne izgubi pred 720p »English« (kot Linux).
+    check(TokIzbira.tockeJezika("Film 1080p", "en", "en") == 800)
+    check(TokIzbira.tockeJezika("Film 1080p", "en", "fr") == 0)
+    check(TokIzbira.uredi(listOf("Fight.Club.English.720p.WEB-DL 1.6 GB", "Fight.Club.1080p.BluRay.x264 8 GB"), { it },
+        TokIzbira.Zmoznosti(visina = 1080), zelenJezik = "en", izvirni = "en")[0].contains("1080p"))
     // samo izvirnik »Auto« (neznana locljivost) proti neoznacenemu 4K istega dodatka: izvirnik
     val samoAuto = listOf(zona[0], zona[3])
     check(TokIzbira.uredi(samoAuto, { it }, tv, zelenJezik = "en", izvirni = "en").first() == zona[3])

@@ -94,7 +94,9 @@ object TokIzbira {
         if (zelen.isBlank()) return 0
         return when (val j = jezikZvoka(besedilo)) {
             // Dodatek, ki posebej oznaci izvirnik s podnapisi (»Legendado«), ima brez oznake sinhronizacijo.
-            "" -> if (neoznacenJeSinhronizacija) -800 else 0
+            // Lastnik 24. 11. 2026: pri filmu v anglescini je izdaja brez oznake jezika skoraj vedno izvirna (angleska);
+            // enako kot Linux (core/tok_izbira.py). Tuji filmi: neoznaceno ostane 0.
+            "" -> if (neoznacenJeSinhronizacija) -800 else if (zelen == "en" && izvirni == "en") 800 else 0
             zelen -> 800
             "izvirnik" -> if (izvirni.isBlank() || izvirni == zelen) 800 else 0
             "vec" -> 300
