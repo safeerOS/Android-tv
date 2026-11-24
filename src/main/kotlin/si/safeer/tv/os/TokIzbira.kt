@@ -82,6 +82,8 @@ object TokIzbira {
         "sl" to Regex("sloven|sinhroniz"),
     )
     private val Z_SINHRONIZACIJA = Regex("\\bdub(bed)?\\b|dublaj|doblad")
+    // Cirilica brez druge oznake jezika: ruska/ukrajinska izdaja (Rutor, Rutracker) ima ruski zvok (24. 11. 2026, kot Linux).
+    private val Z_CIRILICA = Regex("[\\u0400-\\u04FF]{3,}")
 
     /**
      * Jezik zvoka, kot ga navaja tok: koda ISO 639-1, "izvirnik" (izvirni zvok s podnapisi, npr. »Legendado«),
@@ -95,7 +97,8 @@ object TokIzbira {
         for (m in Z_ZASTAVA.findAll(t)) { val k = jezikZastave(m.value); if (k !in najdeni) najdeni.add(k) }
         if (najdeni.size >= 2) return "vec"
         if (najdeni.size == 1) return najdeni[0]
-        return if (Z_SINHRONIZACIJA.containsMatchIn(t)) "sinhronizacija" else ""
+        if (Z_SINHRONIZACIJA.containsMatchIn(t)) return "sinhronizacija"
+        return if (Z_CIRILICA.containsMatchIn(t)) "ru" else ""
     }
 
     /** Zeleni jezik zvoka za film: slovenski film v slovenscini, vse ostalo v anglescini. [izvirni]: jezik filma. */

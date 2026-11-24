@@ -170,5 +170,10 @@ fun main() {
     val yts = "Night of the Living Dead 1968 1080p BluRay 👤 100 YTS"
     for (seznam in listOf(listOf(ru, yts), listOf("Ночь / Night [1968 1080p BDRip] 👤 100 🇬🇧 / 🇷🇺", yts), listOf("Film Subbed 720p 👤 100", yts)))
         check(TokIzbira.uredi(seznam, { it }, TokIzbira.Zmoznosti(visina = 1080), zelenJezik = "en", izvirni = "en")[0] == yts)
+    // Cirilica brez oznake (Rutor »Синтел / Sintel 4K от EbP«) ni angleska izdaja.
+    check(TokIzbira.jezikZvoka("Синтел / Sintel (2010) 4K от EbP | 👤 30") == "ru")
+    check(TokIzbira.jezikZvoka("Синтел / Sintel 1080p ENG") == "en")
+    check(TokIzbira.uredi(listOf("Синтел / Sintel (2010) 4K от EbP | 👤 30", "Sintel 2010 1080p BluRay | 👤 30"), { it },
+        TokIzbira.Zmoznosti(visina = 2160), zelenJezik = "en", izvirni = "en")[0] == "Sintel 2010 1080p BluRay | 👤 30")
     println("TokIzbiraTest: OK")
 }
