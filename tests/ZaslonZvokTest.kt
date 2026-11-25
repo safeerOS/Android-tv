@@ -216,6 +216,41 @@ fun main() {
     preveriEnako("pcm16 stevilo=0 zapise 0", 0, ZaslonZvok.pretvoriFloatVPcm16(dolgVhod, delniIzhod, 0))
     preveriEnako("pcm16 stevilo=-3 zapise 0", 0, ZaslonZvok.pretvoriFloatVPcm16(dolgVhod, delniIzhod, -3))
 
+    // Izpust zaostanka brez poka (25. 11. 2026: lastnik je pri filmu slisal »treske, poke«). Sinus 440 Hz, mono s16;
+    // izpust 13,7 ms (ni cel val) - brez preliva je skok med zadnjim predvajanim in prvim naslednjim vzorcem velik.
+    run {
+        val hz = 48000
+        val n = 4800
+        val val16 = ByteArray(n * 2)
+        for (k in 0 until n) {
+            val v = (Math.sin(2 * Math.PI * 440.0 * k / hz) * 20000).toInt()
+            val16[2 * k] = (v and 0xff).toByte(); val16[2 * k + 1] = ((v shr 8) and 0xff).toByte()
+        }
+        fun vzorec(b: ByteArray, i: Int) = ((b[2 * i].toInt() and 0xff) or (b[2 * i + 1].toInt() shl 8)).toShort().toInt()
+        fun najvecjiSkok(izpusti: (ZaslonZvok.VrstaZvoka) -> Unit): Int {
+            val v = ZaslonZvok.VrstaZvoka()
+            v.dodaj(val16.copyOf(), 0, 1000, null, false)       // 500 vzorcev ze »predvajanih«
+            v.dodaj(val16.copyOf(), 1000, val16.size - 1000, null, false)
+            val pred = ByteArray(1000); val p0 = v.prvi()!!; System.arraycopy(p0.podatki, p0.od, pred, 0, 1000); v.porabi(1000)
+            izpusti(v)
+            val po = ByteArray(v.bajtov); var i = 0
+            while (v.prvi() != null) { val k = v.prvi()!!; val d = k.konec - k.od; System.arraycopy(k.podatki, k.od, po, i, d); i += d; v.porabi(d) }
+            val vse = pred + po
+            var skok = 0
+            for (k in 1 until vse.size / 2) skok = maxOf(skok, Math.abs(vzorec(vse, k) - vzorec(vse, k - 1)))
+            return skok
+        }
+        val izpust = 1316                       // 658 vzorcev = 13,7 ms
+        val brez = najvecjiSkok { it.izpusti(izpust) }
+        val zPrelivom = najvecjiSkok { it.izpustiPreliv(izpust, 768) }  // 8 ms
+        val naravni = (2 * Math.PI * 440.0 / hz * 20000).toInt() + 2
+        preveri("izpust brez preliva naredi pok (skok $brez)", brez > 3 * naravni)
+        preveri("izpust s prelivom brez poka (skok $zPrelivom, naravni $naravni)", zPrelivom <= 2 * naravni)
+        val v = ZaslonZvok.VrstaZvoka()
+        v.dodaj(ByteArray(100), 0, 100, null, false)
+        preveriEnako("premalo za preliv -> navaden izpust", 40, v.izpustiPreliv(40, 64))
+    }
+
     preveri("skupaj vsaj 40 preverjanj", stevecPreverjanj >= 40)
     println("ZaslonZvokTest: OK")
 }

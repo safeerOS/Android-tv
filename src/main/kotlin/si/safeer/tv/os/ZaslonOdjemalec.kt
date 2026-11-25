@@ -87,7 +87,9 @@ class ZaslonOdjemalec(
     @Volatile private var qp = 0
 
     /** Tok za »Podatke o povezavi«: kodek in kvantizator, npr. »HEVC q20«. */
-    fun opisToka(): String = (if (hevc) "HEVC" else "H.264") + (if (qp > 0) " q$qp" else "")
+    fun opisToka(): String = (if (hevc) "HEVC" else "H.264") + (if (qp > 0) " q$qp" else "") + " izpustov_zvoka=$izpustovZvoka"
+    /** Izpusti zaostanka zvoka v tej seji (vsak je bil prej slisen pok; zdaj s prelivom) - za dnevnik. */
+    @Volatile private var izpustovZvoka = 0
     // Stanje dekodiranja; bere in pise ga samo nit toka.
     private val info = MediaCodec.BufferInfo()
     private var slik = 0
@@ -609,9 +611,11 @@ class ZaslonOdjemalec(
             vrstaZvoka.bajtov, zvokHz, zvokKanali, false)
         val izpust = ZaslonZvok.zaIzpustMs(zaostanek, ZaslonSinhro.zamikZvokaMs(uveljavljenZamikMs))
         if (izpust <= 0L) return
-        val izpusceno = vrstaZvoka.izpusti(ZaslonZvok.bajtovZaMs(izpust, zvokHz, zvokKanali, false))
+        // Z navzkriznim prelivom (brez poka sredi vala, 25. 11. 2026); stevec gre v dnevnik statistike.
+        val izpusceno = vrstaZvoka.izpustiPreliv(ZaslonZvok.bajtovZaMs(izpust, zvokHz, zvokKanali, false),
+            ZaslonZvok.bajtovZaMs(ZaslonZvok.PRELIV_IZPUSTA_MS, zvokHz, zvokKanali, false))
         // Po izpustu so meritve odmika iz casa pred njim napacne.
-        if (izpusceno > 0) krmilnik.pozabiMeritve()
+        if (izpusceno > 0) { krmilnik.pozabiMeritve(); izpustovZvoka++ }
     }
 
     /** Nit prikaza: slika s tem pts je bila izrisana ob [nanoTime] (System.nanoTime). */

@@ -256,10 +256,56 @@ object ZaslonZvok {
             return izpusceno
         }
 
+        /**
+         * Izpust z navzkriznim prelivom (25. 11. 2026: lastnik je pri filmu slisal »treske, poke« - izpust zaostanka je
+         * zvok odrezal sredi vala). Prvih [preliv] bajtov vrste (A) vzamemo, izpustimo [n] bajtov, nato naslednjih
+         * [preliv] bajtov (B) zamenjamo z A*(1-w) + B*w: val se nadaljuje iz A in gladko preide v B. Samo signed 16-bit
+         * PCM (tok racunalnika). Premalo bajtov za preliv -> navaden [izpusti]. Vrne vse izpusceno (n + preliv).
+         */
+        fun izpustiPreliv(n: Int, preliv: Int): Int {
+            val p = maxOf(preliv, 0) and 1.inv()
+            if (n <= 0 || p <= 0 || bajtov < n + 2 * p) return izpusti(n)
+            val a = ByteArray(p)
+            var i = 0
+            while (i < p) {
+                val kos = kosi.first()
+                val vzeto = minOf(p - i, kos.konec - kos.od)
+                System.arraycopy(kos.podatki, kos.od, a, i, vzeto)
+                kos.od += vzeto
+                i += vzeto
+                if (kos.od >= kos.konec) kosi.removeFirst()
+            }
+            bajtov -= p
+            val izpusceno = izpusti(n)
+            // Mesta naslednjih p bajtov (B) po kosih, brez porabe.
+            val kosB = arrayOfNulls<Kos>(p)
+            val mestoB = IntArray(p)
+            var j = 0
+            for (kos in kosi) {
+                var m = kos.od
+                while (m < kos.konec && j < p) { kosB[j] = kos; mestoB[j] = m; j++; m++ }
+                if (j >= p) break
+            }
+            val vzorcev = p / 2
+            for (v in 0 until vzorcev) {
+                val w = (v + 1).toFloat() / (vzorcev + 1)
+                val ka = (a[2 * v].toInt() and 0xff) or (a[2 * v + 1].toInt() shl 8)
+                val k0 = kosB[2 * v]!!; val k1 = kosB[2 * v + 1]!!
+                val kb = (k0.podatki[mestoB[2 * v]].toInt() and 0xff) or (k1.podatki[mestoB[2 * v + 1]].toInt() shl 8)
+                val r = Math.round(ka * (1f - w) + kb * w).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                k0.podatki[mestoB[2 * v]] = (r and 0xff).toByte()
+                k1.podatki[mestoB[2 * v + 1]] = ((r shr 8) and 0xff).toByte()
+            }
+            return izpusceno + p
+        }
+
         fun pocisti() {
             kosi.clear()
             bajtov = 0
             naslednjiNov = true
         }
     }
+
+    /** Dolzina navzkriznega preliva pri izpustu zaostanka (ms): dovolj za brez poka, premalo za slisen odmev. */
+    const val PRELIV_IZPUSTA_MS = 8L
 }
