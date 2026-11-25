@@ -233,10 +233,11 @@ class QrPrijavaActivity : Activity() {
             if (osnova.isBlank()) return null to null
             val povezava = URL(osnova + pot).openConnection() as HttpURLConnection
             if (povezava !is HttpsURLConnection) return null to null
-            val kljuc = kljucKroga()
-            val (tovarna, zaupnik) = HubTls.odjemalec(koda.odtis, kljuc)
-            povezava.sslSocketFactory = tovarna
-            povezava.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }
+            // Tedenski pregled 25. 11. 2026 (N3): zeton gre v glavo, zato kot ostali klici s kljucem prek
+            // HubTls.zavaruj (brez preusmeritev, samo pripeti odtis). Koda Huba z drugim odtisom, ki ji smeZeton
+            // zaupa le zaradi kljuca kroga, se zdaj ne poveze (zavaruj ali rokovanje TLS vrze -> niHuba).
+            // HubTls ostane enak kopiji na telefonu (link-core-sync.sh), zato videni odtis beremo iz potrdila povezave.
+            HubTls.zavaruj(povezava, this)
             try {
                 povezava.requestMethod = "POST"
                 povezava.connectTimeout = 5000
@@ -247,7 +248,7 @@ class QrPrijavaActivity : Activity() {
                 val telo = JSONObject().put("qr_id", koda.id).put("secret", koda.skrivnost).toString()
                 povezava.outputStream.use { it.write(telo.toByteArray(Charsets.UTF_8)) }
                 val status = povezava.responseCode
-                videni = zaupnik.videni
+                videni = povezava.serverCertificates.firstOrNull()?.let { HubTls.odtis(it) }
                 val tok = if (status >= 400) povezava.errorStream else povezava.inputStream
                 val vsebina = tok?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
                 (try { JSONObject(vsebina) } catch (_: Exception) { JSONObject() }) to videni
