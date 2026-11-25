@@ -74,6 +74,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var omrezje = ""
     /** Racunalnik je rob slike naredil v sliki (odgovor screen.start z »rob«) - pogleda ne pomanjsamo. */
     private var robVSliki = false
+    /** Racunalnik je dobil rob > 0, a ga ni vrnil (starejsi Safeer OS): spremembe roba ne odpirajo vec nove seje. */
+    private var robNeZna = false
+    /** Rob, poslan v zadnji zahtevi screen.start (0 = ni poslan). */
+    private var robPoslan = 0
     /** Omrezje je ze doloceno iz vticnice toka (na sejo enkrat). */
     @Volatile private var omrezjeIzToka = false
     /** Na prikaz omrezja (ali je LTE v resnici 5G) pocakamo najvec enkrat in le trenutek. */
@@ -421,7 +425,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (predano) zahteva.put("handoff", true)
         // Rob slike (overscan) naredi racunalnik v sami sliki (25. 11. 2026): Philips obreze video ravnino, ne zaslona -
         // pomanjsan pogled bi obrezal enako. Starejsi racunalnik polje prezre (odgovor brez »rob«) - takrat pomanjsamo pogled.
-        robPromilov().takeIf { it > 0 }?.let { zahteva.put("rob", it) }
+        robPoslan = robPromilov()
+        if (robPoslan > 0) zahteva.put("rob", robPoslan)
         link.ukaz(r.id, "screen.start", zahteva, 15_000,
             LinkOdjemalec.Odgovor { izid, napaka ->
                 prosim = false
@@ -462,6 +467,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 val podatki = izid.optJSONObject("data") ?: return@Odgovor
                 seja = podatki
                 robVSliki = podatki.has("rob")
+                if (robPoslan > 0 && !robVSliki) robNeZna = true
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)
                 naDrugem = podatki.optString("screen") == "apps"
                 meriloVsebine = if (naDrugem) podatki.optDouble("scale", 0.0).toFloat() else 0f
@@ -1166,7 +1172,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putInt(ZaslonRob.kljuc("${w}x$h"), ZaslonRob.omeji(promilov)).apply()
         // Racunalnik, ki zna rob v sliki: nova seja z novim robom (okvir je v kodirani sliki). Prvi rob > 0 pri racunalniku,
         // ki ga se ni poslal (rob je bil 0), tudi gre na novo sejo - iz odgovora sele izvemo, ali ga zna.
-        if (robVSliki || seja?.has("rob") == false) { znovaZRobom(); return }
+        // Starejsi racunalnik (robNeZna) bi ob vsakem pritisku na novo povezal - zanj samo pomanjsamo pogled.
+        if (robVSliki || (!robNeZna && seja?.has("rob") == false)) { znovaZRobom(); return }
         uravnajRazmerje(slikaW, slikaH)
     }
 
