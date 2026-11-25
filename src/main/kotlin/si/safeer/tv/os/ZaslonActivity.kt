@@ -72,6 +72,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var podatkiVidni = false
     /** Omrezje te naprave ob zahtevi seje (wifi, ethernet, 5g, 4g ...): racunalnik po njem izbere kakovost zdoma. */
     private var omrezje = ""
+    /** Omrezje je ze doloceno iz vticnice toka (na sejo enkrat). */
+    @Volatile private var omrezjeIzToka = false
     /** Na prikaz omrezja (ali je LTE v resnici 5G) pocakamo najvec enkrat in le trenutek. */
     private var cakalNaOmrezje = false
     private var koncujem = false
@@ -392,7 +394,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         pogledZaRacunalnik()?.let { zahteva.put("view", it) }
         // Kaj znamo: preklop na namizje racunalnika, kadar je program odprt tam (program ene same instance), in dolgo
         // skupino slik (enot ne izpuscamo, zato kljucna slika vsako sekundo ni potrebna).
-        zahteva.put("caps", org.json.JSONArray().put("handoff").put("gop"))
+        // Kazalec (25. 11. 2026, lastnik: »zastoj na miski je res moteč«): racunalnik ga ne narise v sliko, ampak poslje
+        // polozaj in obliko (obvestilo »kazalec«), KazalecPogled ga narise takoj - brez zakasnitve videa.
+        zahteva.put("caps", org.json.JSONArray().put("handoff").put("gop").put("kazalec"))
         // Omrezje te naprave: racunalnik po njem in po poti (neposredno ali prek Huba) izbere kakovost.
         zahteva.put("net", omrezje)
         // Kodeki slike po prednosti: HEVC (isti videz, manj podatkov), ce ga ta naprava strojno dekodira v tej velikosti.
@@ -735,6 +739,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 }
             },
             naStatistiko = { s ->
+                // Omrezje po dejanski vticnici toka (25. 11. 2026: tok je sel po kablu, oznaka pa je bila »Wi-Fi«, ker je
+                // bila dolocena iz naslova Linka). Enkrat na sejo; ta klic ne tece na glavni niti.
+                if (!omrezjeIzToka) {
+                    omrezjeIzToka = true
+                    odjemalec?.takeIf { !it.prekHuba }?.oddaljeniNaslovToka?.let { naslov ->
+                        OmrezjeNaprave.vrstaProti(this, naslov)?.let { omrezje = it }
+                    }
+                }
                 // Gledalcu stevilke o hitrosti prenosa nic ne povedo in mu le stojijo cez sliko;
                 // ostanejo v dnevniku, kjer jih potrebujemo, kadar iscemo vzrok tezave.
                 // »pot=« je dejanska pot toka; »privzeto_omrezje_androida« je samo privzeto omrezje sistema (pri kablu brez
@@ -755,6 +767,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             },
             naObvestilo = { ob -> runOnUiThread { obvestilo(ob) } })
         odjemalec = o
+        omrezjeIzToka = false
         // Shranjeni rocni zamik zvoka za ta zaslon velja od prve meritve sinhro naprej.
         o.rocniZamikZvokaMs = rocniZamikZvoka()
         o.zacni(pogled.holder.surface)

@@ -110,6 +110,9 @@ class ZaslonOdjemalec(
         private set
     private var nit: Thread? = null
     private var vticnica: Socket? = null
+
+    /** Naslov racunalnika, na katerega je tok res povezan (za oznako omrezja: kabel ali Wi-Fi); null pred povezavo. */
+    val oddaljeniNaslovToka: String? get() = try { vticnica?.inetAddress?.hostAddress } catch (_: Throwable) { null }
     private var izhod: OutputStream? = null
     private var zvocnik: AudioTrack? = null
 
