@@ -1016,15 +1016,8 @@ class ZaslonOdjemalec(
         return -1
     }
 
-    private fun preberiVrstico(vhod: InputStream, najvec: Int = 512): String {
-        val sb = StringBuilder()
-        while (sb.length < najvec) {
-            val z = vhod.read()
-            if (z < 0 || z == '\n'.code) break
-            sb.append(z.toChar())
-        }
-        return sb.toString()
-    }
+    /** Vrstica glave toka - ZaslonGlava.preberi (cista funkcija s preizkusom tests/ZaslonGlavaTest.kt). */
+    private fun preberiVrstico(vhod: InputStream): String = ZaslonGlava.preberi(vhod)
 
     private companion object {
         /** Izhodna nit caka na dekodirano sliko najvec toliko (mikrosekunde), nato preveri, ali seja se tece. */
