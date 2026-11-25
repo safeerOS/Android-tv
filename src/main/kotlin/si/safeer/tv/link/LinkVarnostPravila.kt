@@ -47,10 +47,21 @@ object LinkVarnostPravila {
             if (!n.all { it.isLetterOrDigit() && it.code < 128 || it == '.' || it == '-' || it == ':' || it == '_' }) continue
             if (PretokPravila.gostiteljPrepovedan(n)) continue
             val b = PretokPravila.bajti(n)
+            if (b == null && videtiStevilcno(n)) continue
             if (b != null && lastni.any { PretokPravila.enakNaslov(b, it) }) continue
             izid.add(n)
         }
         return izid
+    }
+
+    /**
+     * Zapis, ki je videti stevilcen (zadnja oznaka same stevke ali 0x...), a ni strogi IPv4 ali IPv6: 127.1, 2130706433,
+     * 0177.0.0.1, 0x7f.1. Sistem jih razresi v naslov IP (tudi 127.0.0.1), preverba zanke pa jih ne prepozna. Ime v DNS
+     * nikoli nima stevilcne zadnje oznake (RFC 3696), zato pravega imena to ne izloci (neodvisni pregled 25. 11. 2026).
+     */
+    fun videtiStevilcno(n: String): Boolean {
+        val zadnji = n.trim().trimEnd('.').substringAfterLast('.').lowercase()
+        return zadnji.isNotEmpty() && (zadnji.all { it in '0'..'9' } || zadnji.startsWith("0x"))
     }
 
     /** Ali je rok ([rokMs] od [zacetekMs]) mimo; ura nazaj steje kot mimo. */

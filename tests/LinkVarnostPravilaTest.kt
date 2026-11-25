@@ -52,6 +52,10 @@ private fun sprejemZvoka(izvorna: String) {
     preveri("lastni naslov ne zaseda mesta", P.nasloviZvoka("192.168.1.77", (1..10).map { "10.0.0.$it" }, moj).size == P.NAJVEC_NASLOVOV_ZVOKA)
     preveri("brez lastnih naslovov deluje kot prej", P.nasloviZvoka("192.168.1.77", emptyList()) == listOf("192.168.1.77"))
     preveri("ime se ne izloci (brez DNS)", P.nasloviZvoka("racunalnik.lan", emptyList(), moj) == listOf("racunalnik.lan"))
+    // Neodvisni pregled 25. 11. 2026: stevilcni zapisi, ki niso strogi IPv4, sistem razresi v 127.0.0.1.
+    for (n in listOf("127.1", "2130706433", "0177.0.0.1", "0x7f.1", "0x7f000001", "127.0.0.01", "010.0.0.5"))
+        preveri("zvok ne gre na stevilcni zapis $n", P.nasloviZvoka(n, emptyList()).isEmpty())
+    preveri("strogi IPv4 in ime ostaneta", P.nasloviZvoka("10.0.0.5", listOf("racunalnik.lan", "pc1.lan")) == listOf("10.0.0.5", "racunalnik.lan", "pc1.lan"))
     preveri("rok se ni mimo", !P.rokPotekel(1000L, 1000L + P.ROK_GLAVE_ZVOKA_MS - 1, P.ROK_GLAVE_ZVOKA_MS))
     preveri("rok je mimo", P.rokPotekel(1000L, 1000L + P.ROK_GLAVE_ZVOKA_MS, P.ROK_GLAVE_ZVOKA_MS))
     preveri("ura nazaj steje kot mimo", P.rokPotekel(1000L, 999L, P.ROK_GLAVE_ZVOKA_MS))

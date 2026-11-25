@@ -23,6 +23,8 @@ object PretokPravila {
     fun bajti(naslov: String): ByteArray? {
         val n = naslov.trim().removePrefix("[").removeSuffix("]").substringBefore('%')
         if (IPV4.matches(n)) {
+            // Vodilna nicla je lahko osmiski zapis (0177 = 127) - tak zapis ni strogi IPv4 (pregled 25. 11. 2026).
+            if (n.split('.').any { it.length > 1 && it[0] == '0' }) return null
             val d = n.split('.').map { it.toInt() }
             if (d.any { it > 255 }) return null
             return ByteArray(4) { d[it].toByte() }
