@@ -132,10 +132,12 @@ jobs:
           validate-wrappers: true
 
       # Vhod beta gre prek okolja (ne neposredno v ukaz); brez vhoda (push, pull_request) je gradnja enaka kot prej.
+      # Tedenski pregled 25. 11. 2026 (N5/N2): brez TMDB_KLJUC - build.gradle bi ga vgradil v BuildConfig in kljuc bi
+      # bil v artefaktu nepodpisan-apk. Prazen kljuc gradnja dovoli (katalog TMDB v teh APK ni na voljo, Cinemeta je).
+      # Preverba: tests/preveri_ci_skrivnosti.py.
       - name: Nepodpisan APK (brez kljuca)
         env:
           SAFEER_BETA: ${{ github.event.inputs.beta }}
-          TMDB_KLJUC: ${{ secrets.TMDB_KLJUC }}
         run: |
           if [ -n "$SAFEER_BETA" ]; then
             ./gradlew --no-daemon assembleRelease "-PsafeerBeta=$SAFEER_BETA"

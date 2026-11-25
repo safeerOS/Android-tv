@@ -7,6 +7,13 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Tedenski pregled 25. 11. 2026 (N5/N2): nov podpisni kljuc samo z izrecno zastavico (kot telefon). Nov kljuc pomeni,
+# da se namescena aplikacija pri uporabnikih ne more posodobiti (drug podpisnik).
+NOV_KLJUC=0
+for arg in "$@"; do
+    if [ "$arg" = "--nov-kljuc" ]; then NOV_KLJUC=1; fi
+done
+
 # 🧪 Testni podpisni ključ Safeer Threat Intelligence se ne sme znajti v objavljeni različici
 if grep -rqs '"safeer-test-' "$DIR/src/main/kotlin" --include=SignedThreatIntel.kt && [ "${SAFEER_ALLOW_TEST_KEY:-}" != "1" ]; then
     echo "❌ SignedThreatIntel.kt vsebuje TESTNI ključ (safeer-test-*). To je testna gradnja."
@@ -170,6 +177,12 @@ if [ -z "${RELEASE_KEY_PASS:-}" ]; then
     exit 1
 fi
 if [ ! -f "$RELEASE_KEYSTORE" ]; then
+    if [ "$NOV_KLJUC" != "1" ]; then
+        echo "❌ Podpisni kljuc ni najden: $RELEASE_KEYSTORE" >&2
+        echo "👉 Obnovi keystore iz varnostne kopije. Nov kljuc ne more posodobiti ze namescene aplikacije." >&2
+        echo "👉 Samo za povsem nov kljuc: $0 --nov-kljuc" >&2
+        exit 1
+    fi
     # CodeRabbit 4. 11. 2026: shramba je nastala z geslom kljuca, apksigner pa jo odpre z RELEASE_STORE_PASS - ob
     # razlicnih geslih je prvi podpis padel. keytool ustvari PKCS12, ki ima eno geslo za shrambo in kljuc: ob
     # razlicnih geslih novo shrambo zavrnemo z jasnim sporocilom.
@@ -177,7 +190,7 @@ if [ ! -f "$RELEASE_KEYSTORE" ]; then
         echo "❌ Nova shramba (PKCS12) potrebuje enako geslo shrambe in kljuca (RELEASE_STORE_PASS = RELEASE_KEY_PASS)." >&2
         exit 1
     fi
-    echo "🔑 Ustvarjam produkcijski keystore za TV ($RELEASE_KEYSTORE) – shrani varnostno kopijo na USB!"
+    echo "🔑 Ustvarjam NOV produkcijski keystore za TV ($RELEASE_KEYSTORE) – shrani varnostno kopijo na USB!"
     mkdir -p "$KEYSTORE_DIR"
     keytool -genkeypair -v \
         -keystore "$RELEASE_KEYSTORE" \
@@ -202,7 +215,8 @@ podpisi() {   # podpisi <okus> <cilj.apk>
     mkdir -p "$DIR/build/signed/$okus"
     # S6 (4. 11. 2026): namesto uber-apk-signer.jar (brez pripete vsote, gesla v ukazni vrstici) apksigner iz build-tools
     # 34.0.0, ki jih ta skripta prenese s pripeto SHA-256. Gradle APK ze poravna; zipalign -c to preveri pred podpisom.
-    # v1 ostane vklopljen (kot pri uber-apk-signer): keytool -printcert v namestitvenih skriptah bere podpis v1.
+    # v1 ostane vklopljen kot prej (uber-apk-signer). Tedenski pregled 25. 11. 2026 (N5/N2): podpis preverjamo samo z
+    # apksigner (tu verify, namestitvene skripte apksigner verify --print-certs); keytool -printcert ni vec v uporabi.
     local bt="$SDK_DIR/build-tools/34.0.0" podpisan="$DIR/build/signed/$okus/$okus-release.apk"
     "$bt/zipalign" -c -p 4 "$nepodpisan" || { echo "APK okusa $okus ni poravnan (zipalign)." >&2; exit 1; }
     "$bt/apksigner" sign \

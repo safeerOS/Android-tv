@@ -86,11 +86,16 @@ fi
 
 # ------------------------------------------------------------------ staticne preverbe (Python)
 echo "== staticne preverbe"
-for p in check_public_package.py check_public_package_test.py preveri_dostop_v_ozadju.py preveri_naslovno_vrstico.py preveri_tv_ikone.py preveri_dnevnik.py preveri_mostove.py preveri_vhode_brskalnika.py preveri_izbiro_datotek.py preveri_ponudnik.py preveri_meni_vsebine.py preveri_pdfjs.py preveri_zunanji_pregled_tv.py preveri_en_okvir_domov.py preveri_police_kartic.py preveri_kazalec_nastavitve.py preveri_tv_popravki3.py preveri_tipka_viri.py; do
+for p in check_public_package.py check_public_package_test.py preveri_dostop_v_ozadju.py preveri_naslovno_vrstico.py preveri_tv_ikone.py preveri_dnevnik.py preveri_mostove.py preveri_vhode_brskalnika.py preveri_izbiro_datotek.py preveri_ponudnik.py preveri_meni_vsebine.py preveri_pdfjs.py preveri_zunanji_pregled_tv.py preveri_en_okvir_domov.py preveri_police_kartic.py preveri_kazalec_nastavitve.py preveri_tv_popravki3.py preveri_tipka_viri.py preveri_ci_skrivnosti.py; do
     [ -f "$TEST_DIR/$p" ] || continue
     if ! command -v python3 >/dev/null 2>&1; then preskoci "$p" "manjka python3"; continue; fi
     pozeni "$p" python3 "$TEST_DIR/$p"
 done
+
+# ------------------------------------------------------------------ lupina
+# Tedenski pregled 25. 11. 2026 (N5/N2): podpis v build_tv_apk.sh z laznimi orodji (ne run_*.sh - tisti so za Kotlin).
+echo "== preizkusi lupine"
+pozeni "preveri_podpis_tv.sh" bash "$TEST_DIR/preveri_podpis_tv.sh"
 
 # ------------------------------------------------------------------ JS
 echo "== preizkusi JS"
