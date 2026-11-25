@@ -72,6 +72,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var podatkiVidni = false
     /** Omrezje te naprave ob zahtevi seje (wifi, ethernet, 5g, 4g ...): racunalnik po njem izbere kakovost zdoma. */
     private var omrezje = ""
+    /** Racunalnik je rob slike naredil v sliki (odgovor screen.start z »rob«) - pogleda ne pomanjsamo. */
+    private var robVSliki = false
     /** Omrezje je ze doloceno iz vticnice toka (na sejo enkrat). */
     @Volatile private var omrezjeIzToka = false
     /** Na prikaz omrezja (ali je LTE v resnici 5G) pocakamo najvec enkrat in le trenutek. */
@@ -417,6 +419,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 .put("h264", org.json.JSONArray().put(1920).put(1080)))
         }
         if (predano) zahteva.put("handoff", true)
+        // Rob slike (overscan) naredi racunalnik v sami sliki (25. 11. 2026): Philips obreze video ravnino, ne zaslona -
+        // pomanjsan pogled bi obrezal enako. Starejsi racunalnik polje prezre (odgovor brez »rob«) - takrat pomanjsamo pogled.
+        robPromilov().takeIf { it > 0 }?.let { zahteva.put("rob", it) }
         link.ukaz(r.id, "screen.start", zahteva, 15_000,
             LinkOdjemalec.Odgovor { izid, napaka ->
                 prosim = false
@@ -456,6 +461,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 dostop.ustavi()
                 val podatki = izid.optJSONObject("data") ?: return@Odgovor
                 seja = podatki
+                robVSliki = podatki.has("rob")
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)
                 naDrugem = podatki.optString("screen") == "apps"
                 meriloVsebine = if (naDrugem) podatki.optDouble("scale", 0.0).toFloat() else 0f
@@ -601,7 +607,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             val visina = koren.height
             if (sirina <= 0 || visina <= 0) return@post
             // Rob slike (overscan): televizorji, ki del slike odrezejo, dobijo prazen pas; izbira velja za ta zaslon.
-            val (uporabnoW, uporabnoH) = ZaslonRob.velikostSlike(sirina, visina, robPromilov())
+            // Racunalnik, ki rob naredi v sliki (robVSliki), dobi cel zaslon - okvir je ze v sliki.
+            val (uporabnoW, uporabnoH) = ZaslonRob.velikostSlike(sirina, visina, if (robVSliki) 0 else robPromilov())
             val merilo = minOf(uporabnoW.toFloat() / sirinaSlike, uporabnoH.toFloat() / visinaSlike)
             val lp = pogled.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.width = (sirinaSlike * merilo).toInt()
@@ -1157,7 +1164,21 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun nastaviRob(promilov: Int) {
         val (w, h) = povrsinaZaSliko()
         getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putInt(ZaslonRob.kljuc("${w}x$h"), ZaslonRob.omeji(promilov)).apply()
+        // Racunalnik, ki zna rob v sliki: nova seja z novim robom (okvir je v kodirani sliki). Prvi rob > 0 pri racunalniku,
+        // ki ga se ni poslal (rob je bil 0), tudi gre na novo sejo - iz odgovora sele izvemo, ali ga zna.
+        if (robVSliki || seja?.has("rob") == false) { znovaZRobom(); return }
         uravnajRazmerje(slikaW, slikaH)
+    }
+
+    /** Nova seja z novim robom slike (kot znovaBrezHevc): stari klici ne smejo sproziti se enega povezovanja. */
+    private fun znovaZRobom() {
+        rodSeje++
+        odjemalec?.ustavi()
+        odjemalec = null
+        seja = null
+        robVSliki = false
+        pokazi(getString(R.string.os_zaslon_povezujem))
+        zahtevajSejo()
     }
 
     /** Shranjeni rocni zamik zvoka za ta zaslon v ms (+ = zvok kasneje, 0 = privzeto). */
