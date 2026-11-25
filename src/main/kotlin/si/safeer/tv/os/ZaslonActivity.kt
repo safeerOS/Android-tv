@@ -757,10 +757,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             naStatistiko = { s ->
                 // Omrezje po dejanski vticnici toka (25. 11. 2026: tok je sel po kablu, oznaka pa je bila »Wi-Fi«, ker je
                 // bila dolocena iz naslova Linka). Enkrat na sejo; ta klic ne tece na glavni niti.
+                // Najprej lokalni naslov prave vticnice (25. 11. 2026: poskusna pot je pri kablu vrnila Wi-Fi, ker aplikacija
+                // brez vezave gre po privzetem omrezju); zastavica se postavi sele, ko je vticnica povezana.
                 if (!omrezjeIzToka) {
-                    omrezjeIzToka = true
-                    odjemalec?.takeIf { !it.prekHuba }?.oddaljeniNaslovToka?.let { naslov ->
-                        OmrezjeNaprave.vrstaProti(this, naslov)?.let { omrezje = it }
+                    val od = odjemalec?.takeIf { !it.prekHuba }
+                    val lokalni = od?.lokalniNaslovToka
+                    if (od != null && lokalni != null) {
+                        omrezjeIzToka = true
+                        (OmrezjeNaprave.vrstaLokalnega(this, lokalni)
+                            ?: od.oddaljeniNaslovToka?.let { OmrezjeNaprave.vrstaProti(this, it) })?.let { omrezje = it }
                     }
                 }
                 // Gledalcu stevilke o hitrosti prenosa nic ne povedo in mu le stojijo cez sliko;

@@ -113,6 +113,10 @@ class ZaslonOdjemalec(
 
     /** Naslov racunalnika, na katerega je tok res povezan (za oznako omrezja: kabel ali Wi-Fi); null pred povezavo. */
     val oddaljeniNaslovToka: String? get() = try { vticnica?.inetAddress?.hostAddress } catch (_: Throwable) { null }
+
+    /** Lokalni naslov TV, s katerega tok res tece (25. 11. 2026: poskusna pot do racunalnika gre po privzetem omrezju
+     *  aplikacije - Wi-Fi -, tok pa po kablu; samo naslov prave vticnice pove vmesnik). Null pred povezavo. */
+    val lokalniNaslovToka: java.net.InetAddress? get() = try { vticnica?.takeIf { it.isConnected }?.localAddress } catch (_: Throwable) { null }
     private var izhod: OutputStream? = null
     private var zvocnik: AudioTrack? = null
 

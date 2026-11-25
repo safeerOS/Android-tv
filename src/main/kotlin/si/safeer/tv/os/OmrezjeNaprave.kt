@@ -87,18 +87,28 @@ object OmrezjeNaprave {
                 } catch (_: Throwable) {}
             }
             nit.start(); nit.join(300)
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            @Suppress("DEPRECATION")
-            val omrezje = cm?.allNetworks?.firstOrNull { n ->
-                lokalni != null && cm.getLinkProperties(n)?.linkAddresses?.any { it.address == lokalni } == true
-            }
-            val z = omrezje?.let { cm.getNetworkCapabilities(it) }
-            when {
-                z == null -> null
-                z.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> OmrezjePravila.ETHERNET
-                z.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> OmrezjePravila.WIFI
-                else -> null
-            }
+            lokalni?.let { vrstaLokalnega(context, it) }
+        }
+    } catch (e: Throwable) {
+        null
+    }
+
+    /**
+     * Omrezje vmesnika z lokalnim naslovom [lokalni] (npr. lokalni naslov vticnice toka): kabel ali Wi-Fi; null, ce
+     * naslova nima noben znan vmesnik. Zanesljivejse od [vrstaProti], ki pot samo ugiba.
+     */
+    fun vrstaLokalnega(context: Context, lokalni: java.net.InetAddress): String? = try {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        @Suppress("DEPRECATION")
+        val omrezje = cm?.allNetworks?.firstOrNull { n ->
+            cm.getLinkProperties(n)?.linkAddresses?.any { it.address == lokalni } == true
+        }
+        val z = omrezje?.let { cm.getNetworkCapabilities(it) }
+        when {
+            z == null -> null
+            z.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> OmrezjePravila.ETHERNET
+            z.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> OmrezjePravila.WIFI
+            else -> null
         }
     } catch (e: Throwable) {
         null
