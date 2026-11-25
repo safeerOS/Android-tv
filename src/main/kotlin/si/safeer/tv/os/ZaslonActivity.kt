@@ -402,7 +402,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // skupino slik (enot ne izpuscamo, zato kljucna slika vsako sekundo ni potrebna).
         // Kazalec (25. 11. 2026, lastnik: »zastoj na miski je res moteč«): racunalnik ga ne narise v sliko, ampak poslje
         // polozaj in obliko (obvestilo »kazalec«), KazalecPogled ga narise takoj - brez zakasnitve videa.
-        zahteva.put("caps", org.json.JSONArray().put("handoff").put("gop").put("kazalec"))
+        // 25. 11. 2026 17:00: na Philips TV KazalecPogled ni viden, ceprav je VISIBLE, na vrhu in na pravem mestu (dnevnik
+        // »kazalec ... -> 797,497«; posnetek brez kazalca). Lastnik ni imel kazalca - do popravka racunalnik spet rise
+        // kazalec v sliko (brez caps »kazalec«). ODPRTO: zakaj se pogled nad SurfaceView ne izrise.
+        zahteva.put("caps", org.json.JSONArray().put("handoff").put("gop"))
         // Omrezje te naprave: racunalnik po njem in po poti (neposredno ali prek Huba) izbere kakovost.
         zahteva.put("net", omrezje)
         // Kodeki slike po prednosti: HEVC (isti videz, manj podatkov), ce ga ta naprava strojno dekodira v tej velikosti.
@@ -1757,8 +1760,21 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         val sy = trenH.toFloat() / slikaH * pogled.scaleY
         kazalecPogled.translationX = trenL + pogled.translationX + kazalecX * sx - kazalecPogled.vrocaX()
         kazalecPogled.translationY = trenT + pogled.translationY + kazalecY * sy - kazalecPogled.vrocaY()
-        kazalecPogled.visibility = View.VISIBLE
+        if (kazalecPogled.visibility != View.VISIBLE) {
+            kazalecPogled.visibility = View.VISIBLE
+            // Kazalec mora biti nad vsemi pogledi seje (25. 11. 2026: lastnik ga na TV ni videl).
+            kazalecPogled.bringToFront()
+        }
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        if (zdaj - zadnjiDnevnikKazalca > 2000) {
+            zadnjiDnevnikKazalca = zdaj
+            android.util.Log.d("SafeerZaslon", "kazalec $kazalecX,$kazalecY slika ${slikaW}x$slikaH tren $trenL,$trenT ${trenW}x$trenH " +
+                "skala ${pogled.scaleX} pomik ${pogled.translationX},${pogled.translationY} -> " +
+                "${kazalecPogled.translationX},${kazalecPogled.translationY} vidnost ${kazalecPogled.visibility} " +
+                "otroci ${(kazalecPogled.parent as? android.view.ViewGroup)?.let { g -> (0 until g.childCount).joinToString { i -> g.getChildAt(i).javaClass.simpleName + if (g.getChildAt(i) === kazalecPogled) "*" else "" } }}")
+        }
     }
+    private var zadnjiDnevnikKazalca = 0L
 
     /** Okvir okoli elementa (x, y, w, h v tockah drugega zaslona), poravnan s sliko in povecavo. */
     private fun pokaziOkvir(x: Int, y: Int, w: Int, h: Int) {
