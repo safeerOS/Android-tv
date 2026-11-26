@@ -10,7 +10,7 @@ import java.io.File
  *
  * Seznam (Feodo Tracker: botnet C2) prenasa in shranjuje agent brskalnika (ThreatFeedsUpdater, mapa threat-lists,
  * datoteka »<id>.list«, en naslov v vrstici). Proces :scit ga samo BERE: odlocitev 4. 11. 2026 ostane (:scit seznamov IPv4
- * ne prenasa), seznam pa je majhen (nekaj sto naslovov), zato je branje poceni; datoteka je omejena na 1 MiB.
+ * ne prenasa), seznama sta majhna (do ok. 8000 naslovov), zato je branje poceni; datoteka je omejena na 1 MiB.
  * Neveljavne vrstice in ne-javni naslovi (zasebni, krajevni, rezervirani) se zavrzejo: zastrupljen vnos 127.0.0.1 ali
  * 192.168.x.x ne sme ustaviti krajevnih imen.
  */
@@ -18,7 +18,7 @@ object ScitIpSeznam {
     const val NAJVEC_BAJTOV = 1 shl 20
 
     /** Seznami IPv4 brskalnikovega agenta (id seznama + ».list«). */
-    val DATOTEKE: List<String> = listOf("feodo.list")
+    val DATOTEKE: List<String> = listOf("feodo.list", "feodo-aggressive.list")
 
     class Nabor(private val urejeni: IntArray, val spremenjena: Long) {
         val stevilo: Int get() = urejeni.size

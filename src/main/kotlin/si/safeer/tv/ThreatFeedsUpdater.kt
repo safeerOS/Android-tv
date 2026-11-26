@@ -25,6 +25,13 @@ object ThreatFeedsUpdater {
             id = "feodo", name = "abuse.ch Feodo Tracker", url = "https://feodotracker.abuse.ch/downloads/ipblocklist.txt",
             category = "Botnet C2 Server", marker = "feodo", minEntries = 0, ipv4 = true,
         ),
+        // Feodo »aggressive« (CC0, ok. 7600 IP, vkljucuje tudi starejse C2): samo za blokado po IP odgovora v Scitu
+        // (dnsOnly: brskalnik ga ne bere). 26. 11. 2026.
+        PlainListSource(
+            id = "feodo-aggressive", name = "abuse.ch Feodo Tracker (aggressive)",
+            url = "https://feodotracker.abuse.ch/downloads/ipblocklist_aggressive.txt",
+            category = "Botnet C2 Server", marker = "feodo", minEntries = 0, ipv4 = true, dnsOnly = true,
+        ),
         // abuse.ch od 21. 10. 2026 brez kljuca vrne 410 (lastnik 9. 11. 2026): uporabnik vpise SVOJ brezplacni kljuc na
         // zaslonu Scita (si.safeer.tv.scit.AbuseChKljuc); brez njega ostane zadnja shranjena kopija. Glava seznama s kljucem ni
         // preverjena, zato headerless (90 % vrstic mora biti vnosov).

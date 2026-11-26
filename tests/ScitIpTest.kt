@@ -102,6 +102,10 @@ fun ipViriTest() {
     val vsi = listOf(feodo, urlhaus, easylist)
     preveri(ScitViri.viriIp(vsi).map { it.id } == listOf("feodo"), "viri IP: samo Feodo")
     preveri(ScitViri.viri(vsi).none { it.ipv4 }, "IPv4 seznam ostane izven nabora domen")
+    val agr = PlainListSource("feodo-aggressive", "Feodo agr", "", "", "feodo", minEntries = 0, ipv4 = true, dnsOnly = true)
+    preveri(ScitViri.viriIp(listOf(feodo, agr, urlhaus)).map { it.id } == listOf("feodo", "feodo-aggressive"), "viri IP: oba Feodo")
+    preveri(!ScitViri.zaBrskalnik(agr) && ScitViri.zaBrskalnik(feodo), "aggressive je samo za Scit")
+    preveri(ScitIpSeznam.DATOTEKE.contains(agr.id + ".list"), "datoteka aggressive v seznamu")
     println("ip viri: OK")
 }
 
