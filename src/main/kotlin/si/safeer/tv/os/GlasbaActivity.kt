@@ -12498,9 +12498,6 @@ class GlasbaActivity : OsActivity() {
         vrstice += getString(if (takoj) R.string.os_debrid_samo_takoj_vkl else R.string.os_debrid_samo_takoj_izk) to {
             Debrid.nastaviSamoTakoj(this, !takoj); osveziNaMestu(); nastavitveDebrida()
         }
-        // Naloga 129: kljuce, vpisane tu (npr. na telefonu), poslji na TV - tam jih ni treba tipkati z daljincem.
-        if ((Debrid.imaKateriKljuc(this) || Usenet.imaIndeksator(this) || MedijskiViri.skrivniDodatki(this).isNotEmpty()) && Predaja.cilji(this).isNotEmpty())
-            vrstice += getString(R.string.os_debrid_poslji) to { posljiKljuceDebrida() }
         // Samodejno usklajevanje (lastnik, 25. 10. 2026): kljuce in dodatke vneses enkrat, veljajo na vseh napravah ozjega kroga.
         val sinh = UskladitevKljucev.vklopljeno(this)
         vrstice += getString(if (sinh) R.string.os_sinh_vkl else R.string.os_sinh_izk) to {
@@ -12549,44 +12546,6 @@ class GlasbaActivity : OsActivity() {
      * Naloga 129: kljuci na drugo napravo v Linku - izbira naprave, potrditev (kateri kljuci, sifrirano od naprave do
      * naprave), izid. Tam se shranijo sele, ko jih uporabnik potrdi.
      */
-    private fun posljiKljuceDebrida() {
-        // Pregled A2: kljuci in indeksator samo napravam v ozjem krogu te naprave (Debrid.posljiKljuce preveri se enkrat).
-        val vse = Predaja.cilji(this)
-        val cilji = OzjiKrog.samoKrog(this, vse)
-        if (cilji.isEmpty()) {
-            Toast.makeText(this, if (vse.isEmpty()) R.string.os_predaja_ni_naprav else R.string.os_debrid_poslji_ni_kroga, Toast.LENGTH_LONG).show()
-            return
-        }
-        val imena = cilji.map { DatotekeActivity.lepoIme(it.ime) }
-        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_debrid_poslji)
-            .setItems(imena.toTypedArray()) { _, i ->
-                val n = cilji[i]; val ime = imena[i]
-                val katere = (Debrid.vrstniRed(this).map { DebridPravila.ime(it) } +
-                    listOfNotNull(Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_ime_kratko, it) }) +
-                    // Webtor rezerva: dodatki s poverilnico (samo gostitelj, nikoli naslov).
-                    MedijskiViri.skrivniDodatki(this).map { getString(R.string.os_skrivni_dodatek_ime, Zasebno.gostitelj(it)) }.distinct()).joinToString(", ")
-                pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
-                    .setTitle(R.string.os_debrid_poslji)
-                    .setMessage(getString(R.string.os_debrid_poslji_vprasanje, katere, ime))
-                    .setPositiveButton(R.string.os_debrid_poslji_gumb) { _, _ ->
-                        Debrid.posljiKljuce(this, n) { koda ->
-                            if (isFinishing) return@posljiKljuce
-                            Toast.makeText(this, when (koda) {
-                                "ok" -> getString(R.string.os_debrid_poslano, ime)
-                                "stara_dodatki" -> getString(R.string.os_debrid_poslji_stara_dodatki, ime)
-                                "ni_krog" -> getString(R.string.os_ozji_krog_zavrnjeno, ime)
-                                "ni_zascite" -> getString(R.string.os_debrid_poslji_ni_zascite, ime)
-                                "ni_dovoljeno" -> getString(R.string.os_debrid_poslji_ni_dovoljeno, ime)
-                                "stara" -> getString(R.string.os_predaja_poslji_stara, ime)
-                                else -> getString(R.string.os_predaja_poslji_napaka, ime)
-                            }, Toast.LENGTH_LONG).show()
-                        }
-                    }
-                    .setNegativeButton(R.string.os_preklici, null))
-            }
-            .setNegativeButton(R.string.os_preklici, null).create()
-        Kontroler.pokazi(okno); okno.show()
-    }
 
     // ------------------------------------------------------------------ samodejno usklajevanje kljucev (ozji krog)
 

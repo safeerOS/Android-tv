@@ -99,15 +99,8 @@
     <string name="os_debrid_brez">Continua senza (senza privacy)</string>
     <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
     <string name="os_debrid_kljuc_neberljiv">La chiave %1$s salvata non può più essere letta su questo dispositivo (archivio sicuro). Inseriscila di nuovo.</string>
-    <string name="os_debrid_poslji_ni_kroga">Nessun dispositivo in Safeer Link è nella cerchia ristretta di questo dispositivo – chiavi non inviate. Aggiungilo in Impostazioni → Cerchia di fiducia ristretta.</string>
     <string name="os_debrid_napaka_naslov_vse">I servizi debrid non sono riusciti a riprodurlo</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
-    <string name="os_debrid_poslji">Invia le chiavi a un altro dispositivo</string>
-    <string name="os_debrid_poslji_vprasanje">Inviare le tue chiavi (%1$s) a %2$s? Viaggiano cifrate da dispositivo a dispositivo; %2$s le salva solo dopo la tua conferma.</string>
-    <string name="os_debrid_poslji_gumb">Invia</string>
-    <string name="os_debrid_poslano">Inviato – conferma su %1$s</string>
-    <string name="os_debrid_poslji_ni_zascite">%1$s non ha una connessione cifrata tra dispositivi – chiavi non inviate</string>
-    <string name="os_debrid_poslji_ni_dovoljeno">%1$s non lo consente a questo dispositivo – concedigli l’accesso completo in Safeer Link</string>
     <string name="os_debrid_prejeto_odpri">Chiavi debrid da un altro dispositivo in attesa – apri il Media Center per confermare</string>
     <string name="os_debrid_prejeto_vprasanje">%1$s ti ha inviato chiavi debrid: %2$s. Salvarle su questo dispositivo?</string>
     <string name="os_debrid_prejeto_shranjeno">Salvato: %1$s</string>
@@ -136,7 +129,6 @@
     <string name="os_skrivni_dodatek_ime">componente aggiuntivo %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">Impossibile salvare il componente aggiuntivo in modo sicuro (crittografia non riuscita). Riprova.</string>
     <string name="os_mediji_dodatek_dodaj_znova">non può essere sbloccato su questo dispositivo – il componente aggiuntivo va aggiunto di nuovo (%1$s)</string>
-    <string name="os_debrid_poslji_stara_dodatki">Chiavi inviate – conferma su %1$s. I componenti aggiuntivi con token personale non sono stati inviati: aggiorna prima Safeer su %1$s.</string>
     <string name="os_sinh_vkl">Sincronizza automaticamente chiavi e componenti aggiuntivi nella cerchia ristretta: attivo</string>
     <string name="os_sinh_izk">Sincronizza automaticamente chiavi e componenti aggiuntivi nella cerchia ristretta: disattivo</string>
     <string name="os_sinh_naprave">Dispositivi con le chiavi (%1$d)</string>

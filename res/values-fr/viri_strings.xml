@@ -99,15 +99,8 @@
     <string name="os_debrid_brez">Continuer sans (sans confidentialité)</string>
     <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
     <string name="os_debrid_kljuc_neberljiv">La clé %1$s enregistrée ne peut plus être lue sur cet appareil (stockage sécurisé). Saisissez-la à nouveau.</string>
-    <string name="os_debrid_poslji_ni_kroga">Aucun appareil de Safeer Link n’est dans le cercle proche de cet appareil – clés non envoyées. Ajoutez-le dans Réglages → Cercle de confiance proche.</string>
     <string name="os_debrid_napaka_naslov_vse">Les services debrid n’ont pas pu lire ce contenu</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
-    <string name="os_debrid_poslji">Envoyer les clés à un autre appareil</string>
-    <string name="os_debrid_poslji_vprasanje">Envoyer vos clés (%1$s) à %2$s ? Elles voyagent chiffrées d’appareil à appareil ; %2$s ne les enregistre qu’après votre confirmation.</string>
-    <string name="os_debrid_poslji_gumb">Envoyer</string>
-    <string name="os_debrid_poslano">Envoyé – confirmez sur %1$s</string>
-    <string name="os_debrid_poslji_ni_zascite">%1$s n’a pas de connexion chiffrée d’appareil à appareil – clés non envoyées</string>
-    <string name="os_debrid_poslji_ni_dovoljeno">%1$s n’autorise pas cet appareil – donnez-lui l’accès complet dans Safeer Link</string>
     <string name="os_debrid_prejeto_odpri">Des clés debrid d’un autre appareil attendent – ouvrez le Media Center pour confirmer</string>
     <string name="os_debrid_prejeto_vprasanje">%1$s vous a envoyé des clés debrid : %2$s. Les enregistrer sur cet appareil ?</string>
     <string name="os_debrid_prejeto_shranjeno">Enregistré : %1$s</string>
@@ -136,7 +129,6 @@
     <string name="os_skrivni_dodatek_ime">extension %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">L’extension n’a pas pu être enregistrée de façon sécurisée (échec du chiffrement). Réessayez.</string>
     <string name="os_mediji_dodatek_dodaj_znova">impossible à déverrouiller sur cet appareil – l’extension doit être ajoutée à nouveau (%1$s)</string>
-    <string name="os_debrid_poslji_stara_dodatki">Clés envoyées – confirmez sur %1$s. Les extensions avec un jeton personnel n’ont pas été envoyées : mettez d’abord Safeer à jour sur %1$s.</string>
     <string name="os_sinh_vkl">Synchroniser automatiquement les clés et extensions dans le cercle proche : activé</string>
     <string name="os_sinh_izk">Synchroniser automatiquement les clés et extensions dans le cercle proche : désactivé</string>
     <string name="os_sinh_naprave">Appareils avec les clés (%1$d)</string>

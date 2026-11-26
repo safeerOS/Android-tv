@@ -616,7 +616,7 @@ object MedijskiViri {
     }
 
     /**
-     * Webtor rezerva: pravi naslovi dodatkov s poverilnico te naprave (za [Debrid.posljiKljuce] - samo ozji krog, sifrirano
+     * Webtor rezerva: pravi naslovi dodatkov s poverilnico te naprave (za [UskladitevKljucev] - samo ozji krog, sifrirano
      * od naprave do naprave). Nadomestki brez znane skrivnosti izpadejo.
      */
     fun skrivniDodatki(ctx: Context): List<String> {
@@ -1204,7 +1204,7 @@ object MedijskiViri {
             (v.jePeerTube || v.naslov.startsWith("http://") || v.naslov.startsWith("https://")) &&
             !(v.jeSplet && jeImenikVirov(v.naslov)) &&
             // Webtor rezerva: dodatek s poverilnico (ali njen nadomestek) gre samo v ozji krog - z debrid kljuci
-            // (Debrid.posljiKljuce, potrditev na prejemni napravi), nikoli z navadnim usklajevanjem virov.
+            // (UskladitevKljucev, potrditev na prejemni napravi), nikoli z navadnim usklajevanjem virov.
             !(v.jeStremio && !SkrivnostiPravila.smeMedVseNaprave(v.naslov)) &&
             // Lastnik, 26. 10. 2026: vir z racunom IPTV (pravi naslov ali nadomestek) enako - samo ozji krog (UskladitevKljucev,
             // kljuc »iptv:<odtis>«); prej je sel vsem napravam v Linku. Grok 46, Ö1: fail-closed - z navadnim usklajevanjem samo

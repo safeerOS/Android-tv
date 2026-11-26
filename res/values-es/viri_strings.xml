@@ -99,15 +99,8 @@
     <string name="os_debrid_brez">Continuar sin (sin privacidad)</string>
     <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
     <string name="os_debrid_kljuc_neberljiv">La clave de %1$s guardada ya no se puede leer en este dispositivo (almacenamiento seguro). Vuelve a introducirla.</string>
-    <string name="os_debrid_poslji_ni_kroga">Ningún dispositivo de Safeer Link está en el círculo cercano de este dispositivo: claves no enviadas. Añádelo en Ajustes → Círculo de confianza cercano.</string>
     <string name="os_debrid_napaka_naslov_vse">Los servicios debrid no pudieron reproducir esto</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
-    <string name="os_debrid_poslji">Enviar claves a otro dispositivo</string>
-    <string name="os_debrid_poslji_vprasanje">¿Enviar tus claves (%1$s) a %2$s? Viajan cifradas de dispositivo a dispositivo; %2$s solo las guarda cuando confirmes allí.</string>
-    <string name="os_debrid_poslji_gumb">Enviar</string>
-    <string name="os_debrid_poslano">Enviado – confirma en %1$s</string>
-    <string name="os_debrid_poslji_ni_zascite">%1$s no tiene conexión cifrada entre dispositivos – claves no enviadas</string>
-    <string name="os_debrid_poslji_ni_dovoljeno">%1$s no lo permite a este dispositivo – dale acceso completo en Safeer Link</string>
     <string name="os_debrid_prejeto_odpri">Claves debrid de otro dispositivo en espera – abre el Media Center para confirmar</string>
     <string name="os_debrid_prejeto_vprasanje">%1$s te ha enviado claves debrid: %2$s. ¿Guardarlas en este dispositivo?</string>
     <string name="os_debrid_prejeto_shranjeno">Guardado: %1$s</string>
@@ -136,7 +129,6 @@
     <string name="os_skrivni_dodatek_ime">complemento %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">No se pudo guardar el complemento de forma segura (falló el cifrado). Inténtalo de nuevo.</string>
     <string name="os_mediji_dodatek_dodaj_znova">no se puede desbloquear en este dispositivo: hay que volver a añadir el complemento (%1$s)</string>
-    <string name="os_debrid_poslji_stara_dodatki">Claves enviadas – confirma en %1$s. Los complementos con token personal no se enviaron: actualiza primero Safeer en %1$s.</string>
     <string name="os_sinh_vkl">Sincronizar claves y complementos en el círculo cercano automáticamente: activado</string>
     <string name="os_sinh_izk">Sincronizar claves y complementos en el círculo cercano automáticamente: desactivado</string>
     <string name="os_sinh_naprave">Dispositivos con claves (%1$d)</string>

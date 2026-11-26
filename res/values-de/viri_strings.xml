@@ -99,15 +99,8 @@
     <string name="os_debrid_brez">Ohne fortfahren (ohne Privatsphäre)</string>
     <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
     <string name="os_debrid_kljuc_neberljiv">Der gespeicherte %1$s-Schlüssel kann auf diesem Gerät nicht mehr gelesen werden (sicherer Speicher). Gib ihn erneut ein.</string>
-    <string name="os_debrid_poslji_ni_kroga">Kein Gerät in Safeer Link ist im engeren Kreis dieses Geräts – Schlüssel nicht gesendet. Füge es unter Einstellungen → Engerer Vertrauenskreis hinzu.</string>
     <string name="os_debrid_napaka_naslov_vse">Die Debrid-Dienste konnten das nicht abspielen</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
-    <string name="os_debrid_poslji">Schlüssel an anderes Gerät senden</string>
-    <string name="os_debrid_poslji_vprasanje">Deine Schlüssel (%1$s) an %2$s senden? Sie werden verschlüsselt von Gerät zu Gerät übertragen; %2$s speichert sie erst nach deiner Bestätigung dort.</string>
-    <string name="os_debrid_poslji_gumb">Senden</string>
-    <string name="os_debrid_poslano">Gesendet – auf %1$s bestätigen</string>
-    <string name="os_debrid_poslji_ni_zascite">%1$s hat keine verschlüsselte Gerät-zu-Gerät-Verbindung – Schlüssel nicht gesendet</string>
-    <string name="os_debrid_poslji_ni_dovoljeno">%1$s erlaubt das diesem Gerät nicht – gib ihm in Safeer Link vollen Zugriff</string>
     <string name="os_debrid_prejeto_odpri">Debrid-Schlüssel von einem anderen Gerät warten – öffne das Media Center zum Bestätigen</string>
     <string name="os_debrid_prejeto_vprasanje">%1$s hat dir Debrid-Schlüssel gesendet: %2$s. Auf diesem Gerät speichern?</string>
     <string name="os_debrid_prejeto_shranjeno">Gespeichert: %1$s</string>
@@ -136,7 +129,6 @@
     <string name="os_skrivni_dodatek_ime">Add-on %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">Das Add-on konnte nicht sicher gespeichert werden (Verschlüsselung fehlgeschlagen). Bitte erneut versuchen.</string>
     <string name="os_mediji_dodatek_dodaj_znova">kann auf diesem Gerät nicht entsperrt werden – das Add-on muss erneut hinzugefügt werden (%1$s)</string>
-    <string name="os_debrid_poslji_stara_dodatki">Schlüssel gesendet – auf %1$s bestätigen. Add-ons mit persönlichem Token wurden nicht gesendet: zuerst Safeer auf %1$s aktualisieren.</string>
     <string name="os_sinh_vkl">Schlüssel und Add-ons im engeren Kreis automatisch abgleichen: an</string>
     <string name="os_sinh_izk">Schlüssel und Add-ons im engeren Kreis automatisch abgleichen: aus</string>
     <string name="os_sinh_naprave">Geräte mit Schlüsseln (%1$d)</string>

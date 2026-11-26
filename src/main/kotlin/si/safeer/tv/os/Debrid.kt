@@ -837,48 +837,6 @@ object Debrid {
         return IzidPrejetih(z(DebridPravila.Prejem.SHRANJEN) + dodatki, z(DebridPravila.Prejem.ZAVRNJEN), z(DebridPravila.Prejem.NI_PREVERJEN))
     }
 
-    /**
-     * Poslje vse vpisane kljuce napravi [n] - samo po sifrirani poti od naprave do naprave ([DebridPravila.smePoslatiKljuc]).
-     * [nato] dobi na glavni niti: "ok" (caka na potrditev tam), "stara_dodatki" (kljuci da, dodatkov s poverilnico starejsa
-     * razlicica ne zna), "ni_krog" (ni v ozjem krogu), "ni_zascite", "ni_dovoljeno",
-     * "stara", "ni_povezave", "napaka".
-     */
-    fun posljiKljuce(c: Context, n: LinkOdjemalec.Naprava, nato: (String) -> Unit) {
-        val link = LinkUpravitelj.pridobi(c.applicationContext)
-        val glavna = android.os.Handler(android.os.Looper.getMainLooper())
-        // Pregled A2: kljuci in indeksator gredo samo napravi v ozjem krogu TE naprave (kot [deliZapomnjen]) - preverjeno
-        // tu, na posiljatelju; naprava zunaj kroga (npr. druzinski telefon) jih ne dobi, tudi ce ima zmoznost »remote«.
-        if (link.jeTaNaprava(n) || !OzjiKrog.vKrogu(c, n.id)) {
-            Log.i(TAG, "kljuci niso poslani: naprava ni v ozjem krogu")
-            glavna.post { nato("ni_krog") }; return
-        }
-        if (!DebridPravila.smePoslatiKljuc(link.odjemalec.znaZascito(n.id), link.povezan)) {
-            glavna.post { nato(if (!link.povezan) "ni_povezave" else "ni_zascite") }; return
-        }
-        val k = JSONObject()
-        // Varovalo racunov K1: kljuc, ki ne velja ali je racun zaklenjen, ne gre na drugo napravo (tam bi ga preverila znova).
-        for (p in DebridPravila.VSI) if (uporaben(c, p)) kljuc(c, p)?.let { k.put(p, it) }
-        val parametri = JSONObject().put("keys", k)
-        // Naloga 141: tudi indeksator Usenet (isto sifrirano pot; tam se shrani sele po potrditvi).
-        Usenet.indeksator(c)?.let { parametri.put("usenet", JSONObject().put("url", it.osnova).put("key", it.kljuc)) }
-        // Webtor rezerva: dodatki s poverilnico (osebni zeton Webtorja ...) gredo samo tu - ozji krog, sifrirano, potrditev.
-        val dodatki = MedijskiViri.skrivniDodatki(c)
-        if (dodatki.isNotEmpty()) parametri.put("addons", JSONArray(dodatki.take(SkrivnostiPravila.NAJVEC_PREJETIH)))
-        // Pregled N6: starejsa razlicica polje »addons« prezre in vseeno odgovori »sprejeto« - povemo, da dodatkov ni dobila.
-        val staraZaDodatke = dodatki.isNotEmpty() && UskladitevKljucevPravila.ZMOZNOST !in n.zmoznosti
-        link.ukaz(n.id, DebridPravila.DEJANJE_KLJUCI, parametri, 8_000, LinkOdjemalec.Odgovor { izid, napaka ->
-            val koda = when {
-                izid?.optBoolean("ok") == true && izid.optJSONObject("data")?.optBoolean("accepted") == true ->
-                    if (staraZaDodatke) "stara_dodatki" else "ok"
-                izid?.optString("code") == si.safeer.tv.link.Daljinec.KODA_NI_DOVOLJENO -> "ni_dovoljeno"
-                izid?.optString("code") == "neznano_dejanje" -> "stara"
-                napaka == "ni_povezave" || napaka == "potek" -> "ni_povezave"
-                else -> "napaka"
-            }
-            glavna.post { nato(koda) }
-        })
-    }
-
     // ------------------------------------------------------------------ skupni HTTP
 
     /**

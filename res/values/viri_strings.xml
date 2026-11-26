@@ -99,15 +99,8 @@
     <string name="os_debrid_brez">Continue without (no privacy)</string>
     <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
     <string name="os_debrid_kljuc_neberljiv">The saved %1$s key can no longer be read on this device (secure storage). Enter it again.</string>
-    <string name="os_debrid_poslji_ni_kroga">None of your devices in Safeer Link is in this device’s inner circle – keys not sent. Add a device in Settings → Inner circle of trust.</string>
     <string name="os_debrid_napaka_naslov_vse">Debrid services could not play this</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
-    <string name="os_debrid_poslji">Send keys to another device</string>
-    <string name="os_debrid_poslji_vprasanje">Send your keys (%1$s) to %2$s? They travel encrypted from device to device; %2$s saves them only after you confirm there.</string>
-    <string name="os_debrid_poslji_gumb">Send</string>
-    <string name="os_debrid_poslano">Sent – confirm on %1$s</string>
-    <string name="os_debrid_poslji_ni_zascite">%1$s has no encrypted device-to-device connection – keys not sent</string>
-    <string name="os_debrid_poslji_ni_dovoljeno">%1$s does not allow this device – give it full access in Safeer Link</string>
     <string name="os_debrid_prejeto_odpri">Debrid keys from another device are waiting – open Media Center to confirm</string>
     <string name="os_debrid_prejeto_vprasanje">%1$s sent you debrid keys: %2$s. Save them on this device?</string>
     <string name="os_debrid_prejeto_shranjeno">Saved: %1$s</string>
@@ -136,7 +129,6 @@
     <string name="os_skrivni_dodatek_ime">add-on %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">The add-on could not be saved securely (encryption failed). Try again.</string>
     <string name="os_mediji_dodatek_dodaj_znova">cannot be unlocked on this device – the add-on has to be added again (%1$s)</string>
-    <string name="os_debrid_poslji_stara_dodatki">Keys sent – confirm on %1$s. Add-ons with a personal token were not sent: update Safeer on %1$s first.</string>
     <string name="os_sinh_vkl">Sync keys and add-ons in the inner circle automatically: on</string>
     <string name="os_sinh_izk">Sync keys and add-ons in the inner circle automatically: off</string>
     <string name="os_sinh_naprave">Devices with keys (%1$d)</string>
