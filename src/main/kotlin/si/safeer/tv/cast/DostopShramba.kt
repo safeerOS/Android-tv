@@ -79,10 +79,10 @@ object DostopShramba {
             val krog = KrogNaprave.krog(ctx)
             val podedovani = try {
                 DostopPravila.podedovani(krog.clani().map { DostopPravila.Clan(it.id, it.kljuc, it.dodano) }, krog.lastniKljuc,
-                    KrogZaupanja::idIzKljuca)
+                    KrogZaupanja::idIzKljuca, znaniPrej = prefs.getStringSet("znani_ob_uvedbi", null)?.toSet())
             } catch (_: Throwable) { emptySet() }
             for (j in podedovani) if (j !in m) m[j] = DostopPravila.VSE_ZMOZNOSTI
-            prefs.edit().putString(KLJUC_NAPRAVE, vJson(m)).putLong(KLJUC_PODEDOVANO, System.currentTimeMillis()).apply()
+            prefs.edit().putString(KLJUC_NAPRAVE, vJson(m)).putLong(KLJUC_PODEDOVANO, System.currentTimeMillis()).remove("znani_ob_uvedbi").apply()
             Log.i(TAG, "Dovoljenja uvedena: dostop obdrzi ${podedovani.size} dosedanjih naprav; nove zacnejo brez dostopa.")
         }
         // Naprava, umaknjena, ko ta program ni tekel (ali pred to razlicico): zapis ne caka na njeno vrnitev.

@@ -347,13 +347,19 @@ object DostopPravila {
      * Naprave, ki ob uvedbi dovoljenj obdrzijo dostop na tej napravi (jedra): tiste, ki so v krogu ze od prej kot
      * [meja] - a le, ce je bila v krogu ze prej tudi TA naprava. Naprava, dodana po meji (telefon druge osebe, nova
      * namestitev), ne podeduje nikogar: tudi ona svojih vsebin ne odpre napravam, ki jih je spoznala sele zdaj.
-     * Steje najstarejsi veljavni vnos istega kljuca (naprava ima lahko vec id-jev).
+     * Steje najstarejsi veljavni vnos istega kljuca (naprava ima lahko vec id-jev). [znaniPrej] (telefon): kljuci v krogu
+     * TE naprave ob prvem zagonu z dovoljenji, zapisani pred vsakim sporocilom; null = brez te omejitve (TV).
      */
-    fun podedovani(clani: List<Clan>, lastniKljuc: String?, idIzKljuca: (String) -> String, meja: Double = MEJA_PODEDOVANJA): Set<String> {
+    fun podedovani(clani: List<Clan>, lastniKljuc: String?, idIzKljuca: (String) -> String, meja: Double = MEJA_PODEDOVANJA,
+                   znaniPrej: Set<String>? = null): Set<String> {
         if (lastniKljuc.isNullOrBlank()) return emptySet()
         val najstarejsi = HashMap<String, Double>()
         for (c in clani) {
             if (c.kljuc.isBlank()) continue
+            // Neodvisni pregled 4. 11. 2026 09:10: »dodano« zapise naprava, ki je clana dodala, in pride v krogu od
+            // drugod - naprava, ki pride v krog po uvedbi, bi z izmisljenim starim casom podedovala ves dostop. Steje
+            // samo kljuc, ki ga je TA naprava imela v svojem krogu, preden je prejela karkoli od Linka ([znaniPrej]).
+            if (znaniPrej != null && c.kljuc !in znaniPrej) continue
             val prej = najstarejsi[c.kljuc]
             if (prej == null || c.dodano < prej) najstarejsi[c.kljuc] = c.dodano
         }
