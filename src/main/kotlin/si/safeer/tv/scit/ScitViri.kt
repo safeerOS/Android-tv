@@ -50,4 +50,11 @@ object ScitViri {
 
     /** Viri za agenta seznamov v procesu :scit, v istem vrstnem redu kot v brskalniku (enak kljuc vira nabora). */
     fun viri(vsi: List<PlainListSource>): List<PlainListSource> = vsi.filter(::zaNabor)
+
+    /**
+     * Seznam IPv4 (Feodo) za blokado po IP odgovora (26. 11. 2026): ne gre v nabor domen (zaNabor je false), a ga :scit
+     * prenese in shrani (majhen, nekaj sto naslovov), da blokada deluje tudi, ko brskalnik ni zagnan (Safeer OS).
+     * Bere ga [ScitIpSeznam].
+     */
+    fun viriIp(vsi: List<PlainListSource>): List<PlainListSource> = vsi.filter { it.ipv4 && !it.raw }
 }

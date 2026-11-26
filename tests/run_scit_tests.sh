@@ -28,6 +28,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/GooglePravila.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/scit/ScitViri.kt" \
+    "$SRC/si/safeer/tv/scit/ScitIpSeznam.kt" \
     "$SRC/si/safeer/tv/scit/AbuseChPravila.kt" \
     "$SRC/si/safeer/tv/scit/ScitPoMeriPravila.kt" \
     "$SRC/com/safeer/threatfeed/ThreatListAgent.kt" \
@@ -37,6 +38,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ScitSkupniPrimeriTest.kt" \
     "$TEST_DIR/DomenskiNaborVirTest.kt" \
     "$TEST_DIR/ScitViriTest.kt" \
+    "$TEST_DIR/ScitIpTest.kt" \
     "$TEST_DIR/ScitPoMeriNaslovTest.kt" \
     "$TEST_DIR/ScitPoMeriGolaImenaTest.kt" \
     "$TEST_DIR/ThreatListNetworkParitetaTest.kt" \
@@ -59,3 +61,5 @@ java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitPoMeriNaslovTest
 java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitPoMeriGolaImenaTestKt
 # Preverba naslovov prenosa seznamov (TV3 N3) se ujema s Linux _naslov_je_javen (ScitPoMeriPravila.naslovJeJavenIp).
 java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ThreatListNetworkParitetaTestKt
+# Blokada po IP odgovora (26. 11. 2026, po zgledu blocky): zapisi A iz odgovora, seznam Feodo, odlocitev, viri.
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitIpTestKt

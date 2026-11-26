@@ -56,6 +56,8 @@ class ScitStoritev : VpnService() {
     @Volatile private var izjeme: Map<String, Long> = emptyMap()
     /** Pregled V1: samo seznami grozenj (scit/grozne.bin) - izjema jih nikoli ne umakne. */
     @Volatile private var grozne: DomenskiNabor.Poizvedba? = null
+    /** Naslovi IPv4 groznj (Feodo) za blokado po IP odgovora; bere datoteko brskalnikovega agenta (ScitIpSeznam). */
+    @Volatile private var ipNabor: ScitIpSeznam.Nabor? = null
     /** Grok 15, N8: gradnja seznamov (in nabora grozenj) je ze zahtevana v tem procesu. */
     @Volatile private var zahtevaniSeznami = false
     @Volatile private var upstream: List<InetAddress> = emptyList()
@@ -299,7 +301,7 @@ class ScitStoritev : VpnService() {
                 if (rezultat != null) break
             }
             val r = rezultat
-            odgovor(if (r != null && cnameUstavi(ime, r)) DnsPaket.odgovorBlokiranoZa(vprasanje) else r)
+            odgovor(if (r != null && odgovorUstavi(ime, r)) DnsPaket.odgovorBlokiranoZa(vprasanje) else r)
         }
     }
 
@@ -418,7 +420,7 @@ class ScitStoritev : VpnService() {
                 if (c.vprasani.none { DnsPaket.ustrezaOdgovor(c.q, id, it.address, izvor, p.port, odgovor) }) continue
                 if (!cakajoce.remove(id, c)) continue
                 // Lastnik 9. 11. 2026: sledilec, skrit za CNAME (kot Pi-hole), se ustavi, ce je cilj na seznamu.
-                if (cnameUstavi(c.q.ime, odgovor)) {
+                if (odgovorUstavi(c.q.ime, odgovor)) {
                     zapisi(DnsPaket.zavijOdgovor(c.q, DnsPaket.odgovorBlokirano(c.q)))
                     continue
                 }
@@ -471,7 +473,8 @@ class ScitStoritev : VpnService() {
             val n = nabor
             val gd = Scit.grozneDatoteka(this)
             val g = grozne
-            if (n == null || datoteka.lastModified() != n.spremenjena || (gd.isFile && (g == null || gd.lastModified() != g.spremenjena))) naloziNabor()
+            if (n == null || datoteka.lastModified() != n.spremenjena || (gd.isFile && (g == null || gd.lastModified() != g.spremenjena)) ||
+                ScitIpSeznam.spremenjena(ipMapa()) != (ipNabor?.spremenjena ?: 0L)) naloziNabor()
             // Nabor Scita gradi in posodablja samo ta proces (4. 11. 2026): agent za nabor (startSamoScit), ne celoten agent
             // brskalnika - filter DNS ne rabi EasyList, drevesa grozenj, kazala ne podpisanega vira. Brskalnik seznamov samo za
             // DNS (HaGeZi PRO) ne bere vec, zato agent tece ob vsakem zagonu Scita (prej samo, ko je bil domene.bin brez
@@ -501,6 +504,7 @@ class ScitStoritev : VpnService() {
         val nov = try { DomenskiNabor.Poizvedba.odpri(Scit.naborDatoteka(this)) } catch (e: Throwable) { Log.w(TAG, "Nabor: ${e.message}"); null }
         if (nov != null) { nabor = nov; Log.i(TAG, "Nabor domen nalozen: ${nov.stevilo}") }
         grozne = try { DomenskiNabor.Poizvedba.odpri(Scit.grozneDatoteka(this)) } catch (_: Throwable) { null }
+        ipNabor = try { ScitIpSeznam.odpri(ipMapa()) } catch (e: Throwable) { Log.w(TAG, "Seznam IP: ${e.javaClass.simpleName}"); null }
         izjeme = try {
             Scit.izjemeDatoteka(this).takeIf { it.isFile }?.readText()?.let { ScitIzjeme.preberi(it, System.currentTimeMillis()) } ?: emptyMap()
         } catch (_: Throwable) { emptyMap() }
@@ -542,6 +546,37 @@ class ScitStoritev : VpnService() {
     } catch (e: Throwable) {
         // Neodvisni pregled 9. 11. 2026: nit odgovorov ne sme pasti (ves DNS bi obstal) - odgovor gre naprej kot doslej.
         Log.w(TAG, "Preverba CNAME: ${e.javaClass.simpleName}")
+        false
+    }
+
+    /** Mapa seznamov brskalnikovega agenta (ThreatFeedsUpdater: filesDir/threat-lists). */
+    private fun ipMapa() = java.io.File(filesDir, "threat-lists")
+
+    /** Odgovor se ustavi zaradi CNAME na seznamu ali zaradi naslova IPv4 na seznamu groznj (26. 11. 2026). */
+    private fun odgovorUstavi(ime: String, odgovor: ByteArray): Boolean = cnameUstavi(ime, odgovor) || ipUstavi(ime, odgovor)
+
+    /**
+     * Odgovor za [ime] vsebuje naslov IPv4 s seznama groznj (blocky »block by response IP«). Brez seznama (ali prazen) ni
+     * dela v odgovoru. Izjema na vprasanem imenu velja (uporabnik mora imeti pot, da ime spusti).
+     */
+    private fun ipUstavi(ime: String, odgovor: ByteArray): Boolean = try {
+        val ip = ipNabor
+        if (ip == null || ip.stevilo == 0) false else {
+            val naslovi = DnsPaket.naslovi4(odgovor)
+            if (naslovi.isEmpty()) false else {
+                val zdaj = System.currentTimeMillis()
+                val izjema = ScitIzjeme.jeStalna(DomenskiNabor.normaliziraj(ime)) || ScitIzjeme.dovoljena(ime, izjeme, zdaj) ||
+                    ScitPregled.uporabniskaVelja(ime, uporabniske, zdaj)
+                if (!ScitOdlocitev.ipUstavi(ime, naslovi, ip::vsebuje, izjema)) false else {
+                    blokiranih.incrementAndGet()
+                    zabeleziUstavljeno(DomenskiNabor.normaliziraj(ime))
+                    true
+                }
+            }
+        }
+    } catch (e: Throwable) {
+        // Nit odgovorov ne sme pasti (kot pri CNAME): odgovor gre naprej kot doslej.
+        Log.w(TAG, "Preverba IP: ${e.javaClass.simpleName}")
         false
     }
 

@@ -170,6 +170,35 @@ object DnsPaket {
         return izhod
     }
 
+    /**
+     * Naslovi IPv4 (zapisi A, razred IN, 4 bajti) iz odseka odgovorov, v zapisu a.b.c.d. Blokada po IP odgovora (blocky
+     * »block by response IP«, 26. 11. 2026): botnet C2 strezniki menjajo imena, naslovi pa so na seznamu Feodo. Najvec
+     * 64 zapisov; pri pokvarjenem sporocilu vrne, kar je prebralo do tam (kot [cnameCilji]).
+     */
+    fun naslovi4(d: ByteArray, dolzina: Int = d.size): List<String> {
+        if (dolzina < 12 || dolzina > d.size) return emptyList()
+        var i = 12
+        for (n in 0 until u16(d, 4)) {
+            val (_, k) = preberiImeOdgovora(d, i, dolzina) ?: return emptyList()
+            i = k + 4
+        }
+        val izhod = ArrayList<String>()
+        for (n in 0 until minOf(u16(d, 6), 64)) {
+            val (_, k) = preberiImeOdgovora(d, i, dolzina) ?: return izhod
+            if (k + 10 > dolzina) return izhod
+            val vrsta = u16(d, k)
+            val razred = u16(d, k + 2)
+            val rd = k + 10
+            val rdl = u16(d, k + 8)
+            if (rd + rdl > dolzina) return izhod
+            if (vrsta == 1 && razred == 1 && rdl == 4) {
+                izhod += "${d[rd].toInt() and 0xFF}.${d[rd + 1].toInt() and 0xFF}.${d[rd + 2].toInt() and 0xFF}.${d[rd + 3].toInt() and 0xFF}"
+            }
+            i = rd + rdl
+        }
+        return izhod
+    }
+
     /** Odgovor NXDOMAIN na surovo sporocilo DNS (ista pot za UDP in TCP). */
     fun odgovorBlokiranoZa(dns: ByteArray): ByteArray = odgovorZ(dns, 3)
 

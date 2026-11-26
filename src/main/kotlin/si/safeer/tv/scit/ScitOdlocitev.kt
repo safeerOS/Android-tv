@@ -80,4 +80,18 @@ object ScitOdlocitev {
         if (d.isEmpty() || izjemaImena || jeKrajevno(d) || jeZascitena(d) || ScitGostitelji.vrsta(d) == ScitGostitelji.Vrsta.KOREN) return null
         return if (cilji.any { odloci(it) == Izid.USTAVI }) d else null
     }
+
+    /**
+     * Blokada po IP odgovora (blocky »block by response IP«, 26. 11. 2026): odgovor za [ime] vsebuje naslov IPv4
+     * [naslovi], ki je na seznamu groznj z naslovi (Feodo: botnet C2). Ustavi se vprasano ime (zabelezi se, da ga
+     * uporabnik na zaslonu Scita lahko spusti). Izjema na imenu (uporabnikova, Webtorjeva, stalna), krajevno ime, Googlov
+     * koren in zasciten gostitelj gredo naprej: naslov skupnega gostovanja se lahko ujema z naslovom s seznama, uporabnik
+     * mora imeti pot, da ime spusti (pri CNAME na seznamu groznj to velja drugace, ker je cilj ime, ne skupen naslov).
+     */
+    fun ipUstavi(ime: String, naslovi: List<String>, naGroznemIp: (String) -> Boolean, izjemaImena: Boolean): Boolean {
+        if (naslovi.isEmpty()) return false
+        val d = DomenskiNabor.normaliziraj(ime)
+        if (d.isEmpty() || izjemaImena || jeKrajevno(d) || jeZascitena(d) || ScitGostitelji.vrsta(d) == ScitGostitelji.Vrsta.KOREN) return false
+        return naslovi.any(naGroznemIp)
+    }
 }

@@ -280,7 +280,7 @@ object ThreatFeedsUpdater {
         si.safeer.tv.scit.AbuseChKljuc.init(context)
         val app = context.applicationContext
         // Lastnik 9. 11. 2026: filtri po meri (uporabnik doda naslov seznama) gredo samo v nabor Scita.
-        val viri = si.safeer.tv.scit.ScitViri.viri(SOURCES) + si.safeer.tv.scit.ScitPoMeri.viri(app)
+        val viri = si.safeer.tv.scit.ScitViri.viri(SOURCES) + si.safeer.tv.scit.ScitViri.viriIp(SOURCES) + si.safeer.tv.scit.ScitPoMeri.viri(app)
         val listAgent = ThreatListAgent(File(app.filesDir, "threat-lists"), viri,
             stateName = "agent-scit.state") { lists ->
             try { si.safeer.tv.scit.Scit.osveziNabor(app, lists) } catch (e: Throwable) {
