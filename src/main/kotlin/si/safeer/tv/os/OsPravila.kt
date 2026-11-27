@@ -1506,6 +1506,9 @@ object OsPravila {
     fun samoUsenetIzbran(usenetIzbran: Boolean, debridAktiven: Boolean, rocno: Boolean): Boolean =
         usenetIzbran && !debridAktiven && !rocno
 
+    /** Lastnik 27. 11. 2026: »Vsi viri« je vedno na voljo, ko ni drugega izbora (brez debrida) ali je Usenet; brezplacni dodatki Stremio ne zahtevajo placila. */
+    fun vsiViriNaVoljo(usenet: Boolean, stKljucev: Int): Boolean = usenet || stKljucev == 0
+
     /**
      * Lastnik 30. 10. 2026: pri slovenskem filmu »Preboj« (tt11006500, 90 min) je dodatek dal torrente ameriskega
      * »Breakthrough« (2019, 116 min) - isti angleski naslov in leto. Posnetek, ki je od filma daljsi ali krajsi za vec

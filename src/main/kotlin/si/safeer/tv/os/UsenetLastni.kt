@@ -48,6 +48,18 @@ object UsenetLastni {
         c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).edit().putBoolean(KLJUC_IZBRAN, da).apply()
     }
 
+    private const val KLJUC_VSI = "viri_vsi"
+
+    /** Lastnik 27. 11. 2026: »Vsi viri« (privzeto vklopljeno) - Usenet ni edini vir; brez tega filter pokaze samo Usenet. */
+    fun vsiViri(c: Context): Boolean = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).getBoolean(KLJUC_VSI, true)
+
+    fun nastaviVsiViri(c: Context, da: Boolean) {
+        c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).edit().putBoolean(KLJUC_VSI, da).apply()
+    }
+
+    /** Izrecno izbran samo Usenet (ne »Vsi viri«). */
+    fun samo(c: Context): Boolean = izbran(c) && !vsiViri(c)
+
     /** Filmi in serije gredo prek lastnega ponudnika: vpisan in izbran v filtru. Glasba uporablja [naVoljo]. */
     fun vUporabi(c: Context): Boolean = naVoljo(c) && izbran(c)
 

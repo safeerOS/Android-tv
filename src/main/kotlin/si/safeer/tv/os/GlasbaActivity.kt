@@ -3581,7 +3581,8 @@ class GlasbaActivity : OsActivity() {
             // »All sources« - Usenet, vse debrid storitve s kljucem (prednostna najprej) in ostali viri (povezave, dodatki, Webtor).
             val usenet = UsenetLastni.naVoljo(this)
             val iUsenet = if (usenet) sKljucem.size else -1
-            val iVse = if (usenet && sKljucem.isNotEmpty()) sKljucem.size + 1 else -1
+            // Lastnik 27. 11. 2026: »Vsi viri« je vedno na voljo (tudi brez debrida in Useneta: brezplacni dodatki Stremio, povezave, Webtor).
+            val iVse = if (OsPravila.vsiViriNaVoljo(usenet, sKljucem.size)) sKljucem.size + (if (usenet) 1 else 0) else -1
             val iBrez = sKljucem.size + (if (usenet) 1 else 0) + (if (iVse >= 0) 1 else 0)
             // Brez kljuca in ponudnika: napis »Debrid: vpisi kljuc«, izbira odpre okno »Debrid storitve«.
             val moznosti = sKljucem.map { DebridPravila.OZNAKA_PREDPOMNJEN + " " + DebridPravila.ime(it) } +
@@ -3590,16 +3591,19 @@ class GlasbaActivity : OsActivity() {
                 (if (sKljucem.isEmpty()) emptyList() else listOf(getString(R.string.os_debrid_izbira_brez))) +
                 getString(R.string.os_debrid_izbira_nastavitve)
             izbira("debrid", moznosti, when {
-                    usenet && UsenetLastni.izbran(this) -> if (aktivna != null && iVse >= 0) iVse else iUsenet
-                    sKljucem.isEmpty() -> -1
+                    usenet && UsenetLastni.izbran(this) -> if ((aktivna != null || UsenetLastni.vsiViri(this)) && iVse >= 0) iVse else iUsenet
+                    sKljucem.isEmpty() -> iVse
                     aktivna != null -> sKljucem.indexOf(aktivna)
                     else -> iBrez },
                 getString(R.string.os_debrid_izbira_naslov), druga ?: niz,
                 if (sKljucem.isEmpty() && !usenet) getString(R.string.os_debrid_izbira_dodaj) else null) { i ->
                 when {
                     i < sKljucem.size -> { Debrid.nastaviAktivno(this, sKljucem[i]); UsenetLastni.nastaviIzbran(this, false) }
-                    i == iUsenet -> { UsenetLastni.nastaviIzbran(this, true); if (sKljucem.isNotEmpty()) Debrid.nastaviAktivno(this, null) }
-                    i == iVse -> { UsenetLastni.nastaviIzbran(this, true); Debrid.nastaviAktivno(this, aktivna ?: sKljucem.first()) }
+                    i == iUsenet -> { UsenetLastni.nastaviIzbran(this, true); UsenetLastni.nastaviVsiViri(this, false); if (sKljucem.isNotEmpty()) Debrid.nastaviAktivno(this, null) }
+                    i == iVse -> {
+                        UsenetLastni.nastaviVsiViri(this, true); UsenetLastni.nastaviIzbran(this, usenet)
+                        if (usenet && sKljucem.isNotEmpty()) Debrid.nastaviAktivno(this, aktivna ?: sKljucem.first())
+                    }
                     i == iBrez && sKljucem.isNotEmpty() -> { Debrid.nastaviAktivno(this, null); UsenetLastni.nastaviIzbran(this, false) }
                     else -> { nastavitveDebrida(); return@izbira }
                 }
@@ -9599,7 +9603,7 @@ class GlasbaActivity : OsActivity() {
         // Diagnostiki razvijalca (samo Webtor, samo P2P) imata svojo pot brez potrditve vnaprej: kartice ni.
         if (tip != "series" || Webtor.samoWebtor(this) || Diagnostika.samoP2p(this)) { rezultat(null, NaslednjaEpizodaPravila.Razlog.NI_SERIJE); return }
         // Isti pogoj kot izberiTok (samodejno): izbran samo Usenet ali diagnostika samo Usenet.
-        val samoUsenet = OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this), Debrid.aktivna(this) != null, false) ||
+        val samoUsenet = OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.samo(this), Debrid.aktivna(this) != null, false) ||
             Usenet.samoUsenet(this)
         // Iskanje tokov vprasa tudi indeksator: steje v isto kvoto kot preverba filtra (FilterViraPravila.NA_MINUTO).
         if ((Usenet.jeNaVoljo(this) || UsenetLastni.naVoljo(this)) && !UsenetFilter.smemPredpripravo()) {
@@ -10206,7 +10210,7 @@ class GlasbaActivity : OsActivity() {
         val katalog = odprtKatalog ?: return null
         val zdaj = android.os.SystemClock.uptimeMillis()
         filterUsenetPrej?.let { (cas, k, f) -> if (k === katalog && zdaj - cas in 0 until 3_000L) return f }
-        val f = if (!OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this), Debrid.aktivna(this) != null, false)) null
+        val f = if (!OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.samo(this), Debrid.aktivna(this) != null, false)) null
             else FilterUsenet(Usenet.odtisRacuna(this) ?: "", Usenet.jeNaVoljo(this))
         filterUsenetPrej = Triple(zdaj, katalog, f)
         // U3 (pregled 6. 11. 2026): zapisi filtra se nalozijo v ozadju; ko so, se mreza izrise znova.
@@ -11635,7 +11639,7 @@ class GlasbaActivity : OsActivity() {
         // ne predvaja, se izbira konca (brez poti mimo). Viden znak kot pri Webtorju.
         // Lastnik 30. 10. 2026: izbira »⚡ Usenet« v mrezi Video je bila samo prednost - pri »Preboj« (Usenet 0 izdaj) se je
         // predvajal torrent prek Webtorja. Izbrani samo Usenet (brez debrid storitve) zdaj velja tudi za predvajanje.
-        val izbranSamoUsenet = OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this),
+        val izbranSamoUsenet = OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.samo(this),
             Debrid.aktivna(this) != null, rocno) && !brezOmejitveUseneta
         val diagnostikaUsenet = !samoWebtor && !rocno && Usenet.samoUsenet(this)
         val samoUsenet = !samoWebtor && (diagnostikaUsenet || izbranSamoUsenet)
